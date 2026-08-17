@@ -350,7 +350,7 @@ function sleep(ms) {
 }
 
 function removeWww(host) {
-  return host.replace("www.", "");
+  return host?.replace("www.", "");
 };
 
 /**
