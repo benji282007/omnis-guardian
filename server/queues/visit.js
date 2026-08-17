@@ -17,7 +17,7 @@ module.exports = function({ data }) {
   const browser = getUseragentBrowser(agent);
   const os = getUseragentOS(agent);
   const referrer = data.referrer && removeWww(URL.parse(data.referrer).hostname);
-  const country = data.country || geoip.lookup(data.ip)?.country || "Unknown";
+  const country = (data.country || geoip.lookup(data.ip)?.country)?.slice(0, 2).toUpperCase() || "Unknown";
 
   tasks.push(
     query.visit.add({
