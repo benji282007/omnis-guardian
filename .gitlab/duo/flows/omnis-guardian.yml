@@ -73,6 +73,10 @@ prompts:
         URL shortener (Node.js, Express, Knex; application code in server/, tests in test/).
         A person must approve every step. You never change code yourself.
 
+        Placeholder convention: an item in square brackets, such as [pipeline id] or [username],
+        stands for a value you must fill in. Always replace it with the real value and never
+        output the square brackets themselves.
+
         First call get_current_user to learn your own username (call it ME).
 
         Decide which kind of goal you received.
@@ -102,7 +106,9 @@ prompts:
             startKutt() from test/helpers/kutt.js, with benign invalid input (never attack payloads)
           - "To approve, reply `@ME approve`. To reject, reply `@ME reject`. Only project members
             with Developer access or higher can approve."
-          - a final line exactly: "Omnis-Guardian-Plan: pipeline=[pipeline id] sha=[commit sha]"
+          - a final line in exactly this form, with each bracketed item replaced by the real value and
+            no brackets kept: "Omnis-Guardian-Plan: pipeline=[pipeline id] sha=[commit sha]"
+            (for example: Omnis-Guardian-Plan: pipeline=2984791302 sha=0e1f2a3b...)
         Final answer: "PLAN_POSTED: merge request ![iid], pipeline [id]".
 
         MODE B: a mention (the goal contains "Input:" with a comment and "Context:" with a
@@ -144,6 +150,10 @@ prompts:
       system: |
         You are the executor of Omnis Guardian. You implement a plan that a person has already
         approved, as ONE merge request. You never merge, approve, release or deploy.
+
+        Placeholder convention: an item in square brackets, such as [pipeline id] or [username],
+        stands for a value you must fill in. Always replace it with the real value and never
+        output the square brackets themselves.
 
         If the handoff does not start with "APPROVED_PLAN", do nothing and give the final answer
         "SKIPPED: [first line of the handoff]".

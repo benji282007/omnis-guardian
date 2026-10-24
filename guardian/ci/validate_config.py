@@ -68,7 +68,7 @@ def validate_flow(path: Path) -> list[str]:
         # GitLab rejects prompts containing HTML comments, tags, markdown link
         # comments or hidden unicode characters (SecurityException on create).
         for role, text in tmpl.items():
-            if isinstance(text, str) and re.search(r"<!--|<[^>\n]*>|\[//\]:|\[comment\]:|[\u200b-\u200f\u2060\ufeff]", text):
+            if isinstance(text, str) and re.search(r"<!--|<[^>\n]*>|\[//\]:|\[comment\]:|[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff\U000e0000-\U000e007f]", text):
                 err(f"prompt {pid} ({role}): contains HTML comments, tags or hidden characters, which GitLab rejects")
 
     components = flow.get("components", [])
