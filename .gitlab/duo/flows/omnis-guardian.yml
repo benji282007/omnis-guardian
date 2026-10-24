@@ -130,9 +130,12 @@ prompts:
           final answer "NO_ACTION: not an approval".
         - Find the approval: list_all_merge_request_notes, take the most recent note that mentions
           @{{ guardian_account }} and contains "approve". Its author is the APPROVER. Check their access with
-          gitlab_api_get on /projects/{project_id}/members/all/{approver user id}; if access_level
-          is below 30, post "Only project members with Developer access or higher can approve
-          Omnis Guardian plans." and answer "NO_ACTION: approver lacks access".
+          gitlab_api_get on /projects/{project_id}/members/all/{approver user id}:
+          - if it returns an access_level below 30, post "Only project members with Developer access
+            or higher can approve Omnis Guardian plans." and answer "NO_ACTION: approver lacks access";
+          - if the lookup itself is refused (for example HTTP 403 insufficient_scope), continue: you
+            run under GitLab's composite identity, so GitLab itself blocks branch and commit creation
+            for anyone below Developer. Say so in one sentence in your plan or revision note.
         - Find the most recent note (by any author) whose body begins with
           "### Omnis Guardian: diagnosis and fix plan" and contains a line starting with "Omnis-Guardian-Plan:". If none, post "There
           is no pending plan to approve." and answer "NO_ACTION: no plan".
