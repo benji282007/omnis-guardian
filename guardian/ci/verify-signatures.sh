@@ -19,8 +19,11 @@ if cosign verify-attestation "$IMAGE_REF" --type slsaprovenance1 \
      --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$CI_SERVER_URL" > dist/attestation.jsonl 2>>dist/verify.log; then
   att=true
   # The attested predicate must be the one this pipeline generated.
-  attested="$(head -1 dist/attestation.jsonl | jq -r .payload | base64 -d | jq -S .predicate)"
-  expected="$(jq -S .predicate dist/provenance.intoto.json)"
+  # cosign re-encodes SLSA v1's "invocationId" as "invocationID", so compare with
+  # object keys lower-cased. Any difference in a value still fails the check.
+  NORM='walk(if type == "object" then with_entries(.key |= ascii_downcase) else . end)'
+  attested="$(head -1 dist/attestation.jsonl | jq -r .payload | base64 -d | jq -S ".predicate | $NORM")"
+  expected="$(jq -S ".predicate | $NORM" dist/provenance.intoto.json)"
   [ "$attested" = "$expected" ] && match=true || detail="${detail:+$detail; }attested provenance differs from this pipeline's"
 else
   detail="${detail:+$detail; }provenance attestation did not verify"
