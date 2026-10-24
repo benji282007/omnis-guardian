@@ -55,7 +55,9 @@ The Kutt admin password for the live instance:
    `Assisted remediation: diagnoses failed MR pipelines, posts a plan, implements it when a maintainer approves.`
    Configuration **Flow**; paste all of `.gitlab/duo/flows/omnis-guardian.yml`; **Create flow**.
 2. Open it and **Enable** it for the project. GitLab creates a service account
-   (`ai-<flow>-<group>`) with Developer access. Note its username.
+   (`ai-<flow>-<group>`) with Developer access. Note its username and, if it is not
+   `ai-omnis-guardian-omnis-guardian`, set it as the `guardian_account` literal input in the
+   flow YAML (top of the `planner` component), then save the flow again.
 3. **AI → Triggers → New flow trigger**: add condition **Pipeline events → Failed**, then
    add condition **Mention**; pick the service account; source = this flow; **Create**.
 
