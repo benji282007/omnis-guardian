@@ -1,0 +1,98 @@
+# Omnis Guardian rules for Kutt (Node.js / Express / Knex).
+# Run in CI by `sast_semgrep`; severity ERROR blocks the pipeline via guardian/ci/security-gate.mjs.
+rules:
+  - id: og-sqli-knex-raw
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      SQL text passed to a Knex raw method is built from a dynamic value. Use
+      Knex's query builder (orderBy, where, ...) with an allow-list for
+      identifiers, or pass values as bindings: knex.raw('... ?', [value]).
+    metadata:
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp: "A03:2021 - Injection"
+      confidence: HIGH
+      category: security
+    paths:
+      exclude:
+        # Migrations run once at deploy time with developer-controlled constants.
+        - "server/migrations/"
+    patterns:
+      - pattern-either:
+          - pattern: $Q.$RAW(`...${...}...`, ...)
+          - pattern: $Q.$RAW($A + $B, ...)
+          - pattern: |
+              $SQL = `...${...}...`;
+              ...
+              $Q.$RAW($SQL, ...);
+          - pattern: |
+              $SQL = $A + $B;
+              ...
+              $Q.$RAW($SQL, ...);
+      - pattern-not: $Q.$RAW("..." + "...", ...)
+      - metavariable-regex:
+          metavariable: $RAW
+          regex: ^(raw|whereRaw|orWhereRaw|andWhereRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|selectRaw|onRaw)$
+
+  - id: og-sqli-driver-dynamic-sql
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      SQL text is built from a dynamic value and passed to a database driver.
+      Use constant SQL with placeholders and bound parameters.
+    metadata:
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      confidence: HIGH
+      category: security
+    paths:
+      exclude:
+        - "server/migrations/"
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$M(`...${...}...`, ...)
+          - pattern: $DB.$M($A + $B, ...)
+      - pattern-not: $DB.$M("..." + "...", ...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(prepare|exec|query)$
+
+  - id: og-command-injection
+    languages: [javascript]
+    severity: ERROR
+    message: A shell command is built from a dynamic value. Use execFile/spawn with an argument array.
+    metadata:
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: HIGH
+      category: security
+    pattern-either:
+      - pattern: $CP.exec(`...${...}...`, ...)
+      - pattern: $CP.execSync(`...${...}...`, ...)
+      - pattern: exec(`...${...}...`, ...)
+      - pattern: execSync(`...${...}...`, ...)
+
+  - id: og-open-redirect-unvalidated
+    languages: [javascript]
+    severity: WARNING
+    message: Redirect target comes straight from the request. Validate it against an allow-list.
+    metadata:
+      cwe: "CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"
+      confidence: MEDIUM
+      category: security
+    pattern-either:
+      - pattern: $RES.redirect($REQ.query.$X)
+      - pattern: $RES.redirect($REQ.body.$X)
+
+  - id: og-dynamic-eval
+    languages: [javascript]
+    severity: ERROR
+    message: Code is evaluated from a non-literal value.
+    metadata:
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+      confidence: MEDIUM
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: eval($X)
+          - pattern: new Function(..., $X)
+      - pattern-not: eval("...")
+      - pattern-not: new Function(..., "...")

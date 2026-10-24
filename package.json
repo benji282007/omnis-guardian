@@ -8,7 +8,9 @@
     "start": "node server/server.js --production",
     "migrate": "knex migrate:latest",
     "migrate:make": "knex migrate:make",
-    "docs:build": "cd docs/api && node generate && cd ../.."
+    "docs:build": "cd docs/api && node generate && cd ../..",
+    "test": "node --test --test-timeout=60000 \"test/**/*.test.js\"",
+    "test:guardian": "node --test \"guardian/test/*.test.mjs\" \"guardian/dashboard/test/*.test.mjs\""
   },
   "repository": {
     "type": "git",

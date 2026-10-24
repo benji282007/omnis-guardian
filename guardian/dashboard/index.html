@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Omnis Guardian · Kutt</title>
+  <meta name="description" content="Assisted release guardian for Kutt: live GitLab data, signed image provenance, Cloud Run deployment and carbon evidence.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-mark" src="favicon.svg" alt="" width="36" height="36">
+      <div>
+        <div class="brand-name">Omnis Guardian</div>
+        <div class="brand-sub">Assisted release guardian for <a href="https://github.com/thedevs-network/kutt" target="_blank" rel="noopener">Kutt</a> · GitLab Duo Agent Platform</div>
+      </div>
+    </div>
+    <div class="topbar-pills">
+      <span class="pill" title="A person approves every step: the fix plan, the fix (by merging) and the release.">Autonomy <strong>Assisted</strong></span>
+      <a class="pill" id="live-link" href="#" target="_blank" rel="noopener" hidden>Live Kutt <strong>↗</strong></a>
+      <a class="pill" id="project-link" href="#" target="_blank" rel="noopener">Project <strong id="project-name">—</strong></a>
+      <span class="pill" id="freshness"><span class="dot dot-idle"></span><span id="freshness-text">Loading…</span></span>
+    </div>
+  </header>
+
+  <main>
+    <div id="notice" class="notice" hidden></div>
+
+    <section class="gate" id="gate" aria-labelledby="gate-title">
+      <div class="gate-head">
+        <div>
+          <div class="eyebrow">Release gate · <span id="gate-pipeline">—</span></div>
+          <h1 id="gate-title">Loading release state…</h1>
+          <p id="gate-text" class="muted"></p>
+        </div>
+        <a id="gate-action" class="btn btn-primary" href="#" target="_blank" rel="noopener" hidden>Open in GitLab</a>
+      </div>
+      <dl class="gate-facts" id="gate-facts"></dl>
+    </section>
+
+    <section aria-labelledby="lifecycle-title">
+      <div class="section-head">
+        <h2 id="lifecycle-title">Lifecycle</h2>
+        <span class="muted small" id="lifecycle-meta"></span>
+      </div>
+      <ol class="stages" id="stages"></ol>
+    </section>
+
+    <div class="grid-2">
+      <section class="card" aria-labelledby="duo-title">
+        <div class="card-head">
+          <h2 id="duo-title">Duo remediation</h2>
+          <span class="tag tag-purple">Duo flow</span>
+        </div>
+        <p class="muted small">Every Duo fix starts as a plan a person approved on the merge request. Fix MRs live on <code>guardian/fix-*</code> branches and count as verified only when CI proves the new test fails on the old code and passes on the fix.</p>
+        <ul class="mr-list" id="mr-list"></ul>
+      </section>
+
+      <section class="card" aria-labelledby="prov-title">
+        <div class="card-head">
+          <h2 id="prov-title">Build provenance</h2>
+          <span class="tag" id="prov-tag">—</span>
+        </div>
+        <dl class="kv" id="prov"></dl>
+        <div class="links" id="prov-links"></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card" aria-labelledby="sec-title">
+        <div class="card-head">
+          <h2 id="sec-title">Security gate</h2>
+          <span class="tag" id="sec-tag">—</span>
+        </div>
+        <div class="sev-row" id="sev-row"></div>
+        <ul class="finding-list" id="findings"></ul>
+      </section>
+
+      <section class="card" aria-labelledby="deploy-title">
+        <div class="card-head">
+          <h2 id="deploy-title">Production · Cloud Run</h2>
+          <span class="tag" id="deploy-tag">—</span>
+        </div>
+        <p class="muted small">Each release deploys a no-traffic candidate, smoke-tests it, promotes it, re-checks production and rolls back automatically on failure.</p>
+        <dl class="kv" id="deploy"></dl>
+        <h3 class="subhead">Image smoke test (CI)</h3>
+        <ul class="probe-list" id="probes"></ul>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card" aria-labelledby="pipes-title">
+        <div class="card-head"><h2 id="pipes-title">Recent pipelines</h2></div>
+        <table class="table" id="pipelines"><thead><tr><th>Pipeline</th><th>Ref</th><th>Commit</th><th>Status</th><th>When</th></tr></thead><tbody></tbody></table>
+      </section>
+      <section class="card" aria-labelledby="rel-title">
+        <div class="card-head"><h2 id="rel-title">Releases</h2></div>
+        <ul class="release-list" id="releases"></ul>
+        <div class="card-head carbon-head"><h2 id="carbon-title">Carbon · SCI per pipeline</h2><span class="tag" id="carbon-tag">—</span></div>
+        <dl class="kv" id="carbon"></dl>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <span>Live data comes from the public GitLab REST API. Security, image, signature, provenance and carbon details come from <span id="footer-pipeline">this site's build pipeline</span>. Nothing on this page is simulated: missing data is shown as missing.</span>
+  </footer>
+</body>
+</html>

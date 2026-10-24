@@ -14,3 +14,15 @@ docs/api/static
 **/.DS_Store
 db/*
 !db/.gitkeep
+
+# Omnis Guardian CI outputs
+dist/
+public/
+.npm/
+*-result.json
+security-summary.json
+regression-proof.json
+release-evidence.json
+carbon-report.json
+gl-*-report.json
+junit-*.xml
