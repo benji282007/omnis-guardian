@@ -29,6 +29,26 @@ const selectable_admin = [
   "users.email as email"
 ];
 
+// Columns and directions that ?sort=<column>:<direction> may use.
+const sortableColumns = [
+  "visit_count",
+  "created_at",
+  "updated_at",
+  "address",
+  "target",
+  "description"
+];
+const sortDirections = ["asc", "desc"];
+
+function parseSort(sort) {
+  if (typeof sort !== "string") return null;
+  const [column, direction = "desc"] = sort.split(":");
+  const normalizedDirection = direction.toLowerCase();
+  if (!sortableColumns.includes(column)) return null;
+  if (!sortDirections.includes(normalizedDirection)) return null;
+  return { column, direction: normalizedDirection };
+}
+
 function normalizeMatch(match) {
   const newMatch = { ...match };
 
@@ -126,9 +146,9 @@ async function get(match, params) {
     .limit(params.limit);
 
   // Sort by any column, e.g. ?sort=visit_count:desc
-  if (params?.sort) {
-    const [column, direction = "desc"] = params.sort.split(":");
-    query.orderByRaw(`links.${column} ${direction}`);
+  const sort = parseSort(params?.sort);
+  if (sort) {
+    query.orderBy("links." + sort.column, sort.direction);
   } else {
     query.orderBy("links.id", "desc");
   }
