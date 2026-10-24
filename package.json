@@ -21,6 +21,9 @@
   ],
   "author": "Pouria Ezzati <ezzati.upt@gmail.com>",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "bugs": {
     "url": "https://github.com/thedevs-network/kutt/issues"
   },
