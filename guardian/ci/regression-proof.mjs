@@ -49,21 +49,27 @@ function runTests(cwd, files) {
 
 /** Pure decision logic, exported for tests. */
 export function decide({ sourceChanged, testFiles, requireTest, head, base }) {
-  if (!sourceChanged) return { proven: true, verdict: 'skipped', reason: 'no application source changed' };
-  if (testFiles.length === 0) {
-    return requireTest
-      ? { proven: false, verdict: 'failed', reason: 'source changed without a new or updated regression test' }
-      : { proven: true, verdict: 'skipped', reason: 'source changed; regression test not required for this branch' };
-  }
-  if (head.ok + head.notOk === 0) return { proven: false, verdict: 'failed', reason: 'no regression tests actually ran on the fix (HEAD)' };
-  if (head.exitCode !== 0) return { proven: false, verdict: 'failed', reason: 'regression tests fail on the fix (HEAD)' };
-  if (base.exitCode === 0) {
-    return { proven: false, verdict: 'failed', reason: 'regression tests also pass on the old code, so they do not detect the defect' };
-  }
-  if (base.assertionFailures === 0) {
-    return { proven: false, verdict: 'inconclusive', reason: 'tests failed on the old code only because they could not load, not because an assertion caught the defect' };
-  }
-  return { proven: true, verdict: 'proven', reason: `${base.assertionFailures} assertion(s) fail on the old code and all pass on the fix` };
+  // Strict (requireTest, i.e. guardian/* fix branches): the changed tests must prove the fix.
+  // Otherwise (feature work): report what was found, but never fail the pipeline, because a
+  // test for NEW behaviour is expected to fail or pass on the old code for unrelated reasons.
+  const result = (() => {
+    if (!sourceChanged) return { proven: true, verdict: 'skipped', reason: 'no application source changed' };
+    if (testFiles.length === 0) {
+      return { proven: false, verdict: 'failed', reason: 'source changed without a new or updated regression test' };
+    }
+    if (head.ok + head.notOk === 0) return { proven: false, verdict: 'failed', reason: 'no regression tests actually ran on the fix (HEAD)' };
+    if (head.exitCode !== 0) return { proven: false, verdict: 'failed', reason: 'regression tests fail on the fix (HEAD)' };
+    if (base.exitCode === 0) {
+      return { proven: false, verdict: 'failed', reason: 'regression tests also pass on the old code, so they do not detect the defect' };
+    }
+    if (base.assertionFailures === 0) {
+      return { proven: false, verdict: 'inconclusive', reason: 'tests failed on the old code only because they could not load, not because an assertion caught the defect' };
+    }
+    return { proven: true, verdict: 'proven', reason: `${base.assertionFailures} assertion(s) fail on the old code and all pass on the fix` };
+  })();
+  if (requireTest || result.proven) return { ...result, enforced: requireTest };
+  // Not a fix branch: keep the finding visible but do not block.
+  return { proven: true, verdict: 'informational', enforced: false, reason: `not enforced on this branch (only guardian/* fix branches): ${result.reason}` };
 }
 
 export function proveRegression({ repo, base, head = 'HEAD', requireTest = false }) {
