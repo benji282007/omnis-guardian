@@ -123,8 +123,15 @@ async function get(match, params) {
     .select(...selectable)
     .where(normalizeMatch(match))
     .offset(params.skip)
-    .limit(params.limit)
-    .orderBy("links.id", "desc");
+    .limit(params.limit);
+
+  // Sort by any column, e.g. ?sort=visit_count:desc
+  if (params?.sort) {
+    const [column, direction = "desc"] = params.sort.split(":");
+    query.orderByRaw(`links.${column} ${direction}`);
+  } else {
+    query.orderBy("links.id", "desc");
+  }
   
   if (params?.search) {
     query[knex.compatibleILIKE](

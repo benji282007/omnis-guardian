@@ -19,6 +19,7 @@ const dnsLookup = promisify(dns.lookup);
 async function get(req, res) {
   const { limit, skip } = req.context;
   const search = req.query.search;
+  const sort = req.query.sort;
   const userId = req.user.id;
 
   const match = {
@@ -26,7 +27,7 @@ async function get(req, res) {
   };
 
   const [data, total] = await Promise.all([
-    query.link.get(match, { limit, search, skip }),
+    query.link.get(match, { limit, search, skip, sort }),
     query.link.total(match, { search })
   ]);
 
