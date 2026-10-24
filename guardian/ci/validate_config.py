@@ -7,6 +7,7 @@ AI > Flows, and the pipeline config by GitLab's CI linter.
 
 Usage: python3 scripts/ci/validate_config.py [repo_root]
 """
+import re
 import sys
 from pathlib import Path
 
@@ -64,6 +65,11 @@ def validate_flow(path: Path) -> list[str]:
             err(f"prompt {pid}: prompt_template.placeholder should be 'history'")
         if "unit_primitives" not in p:
             err(f"prompt {pid}: unit_primitives must be present")
+        # GitLab rejects prompts containing HTML comments, tags, markdown link
+        # comments or hidden unicode characters (SecurityException on create).
+        for role, text in tmpl.items():
+            if isinstance(text, str) and re.search(r"<!--|<[^>\n]*>|\[//\]:|\[comment\]:|[\u200b-\u200f\u2060\ufeff]", text):
+                err(f"prompt {pid} ({role}): contains HTML comments, tags or hidden characters, which GitLab rejects")
 
     components = flow.get("components", [])
     names = [c.get("name") for c in components]

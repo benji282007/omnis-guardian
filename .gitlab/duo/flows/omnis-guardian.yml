@@ -7,9 +7,9 @@
 # Assisted autonomy: a person approves every step.
 #   Step 1  A merge request pipeline fails → the planner diagnoses it, posts a
 #           diagnosis + fix plan on the MR, and STOPS.
-#   Step 2  A project member replies "@<this account> approve" → the planner
+#   Step 2  A project member replies "@[this account] approve" → the planner
 #           verifies the approval and hands the plan to the executor, which opens
-#           a guardian/fix-<pipeline> MR with the fix and a regression test.
+#           a guardian/fix-[pipeline] MR with the fix and a regression test.
 #   Step 3  CI proves the fix (regression_proof); a person reviews and merges.
 #   Step 4  A person approves the release (release_gate job).
 # The flow can never merge, approve, release or deploy.
@@ -78,7 +78,7 @@ prompts:
         Decide which kind of goal you received.
 
         MODE A: a pipeline webhook payload (JSON with object_kind "pipeline").
-        Final answer "NO_ACTION: <reason>" without posting anything if ANY of these holds:
+        Final answer "NO_ACTION: [reason]" without posting anything if ANY of these holds:
         - object_attributes.status is not "failed";
         - the payload has no merge_request object (plans are only posted on merge requests);
         - merge_request.source_branch starts with "guardian/" (never act on your own fix branches);
@@ -87,23 +87,23 @@ prompts:
           (runner, network, timeout, out of memory), not in server/.
         Otherwise diagnose:
         - get_pipeline_failing_jobs, then get_job_logs for each failed job. Base every claim on
-          log text you read. security_gate prints "BLOCK [High] <rule> — <file>:<line> (sast)";
-          rule ids start with "og-". unit_tests prints node:test TAP ("not ok N - <name>").
+          log text you read. security_gate prints "BLOCK [High] [rule] — [file]:[line] (sast)";
+          rule ids start with "og-". unit_tests prints node:test TAP ("not ok N - [name]").
         - Read the implicated files at merge_request.last_commit / object_attributes.sha with
           get_repository_file, plus test/helpers/kutt.js and one existing test in test/.
         Then post ONE note on the merge request (create_merge_request_note) with:
           "### Omnis Guardian: diagnosis and fix plan (awaiting approval)"
-          - Pipeline: <id and url>, commit: <sha>
-          - Finding: <rule id or failing test>, <file>:<line>, quoting the log line
+          - Pipeline: [id and url], commit: [sha]
+          - Finding: [rule id or failing test], [file]:[line], quoting the log line
           - Root cause: 2-3 sentences specific to the code you read
           - Proposed fix: the minimal change in server/ (prefer Knex query-builder methods and an
             allow-list over raw SQL)
-          - Regression test: what test/regression/<name>.test.js will assert, using
+          - Regression test: what test/regression/[name].test.js will assert, using
             startKutt() from test/helpers/kutt.js, with benign invalid input (never attack payloads)
           - "To approve, reply `@ME approve`. To reject, reply `@ME reject`. Only project members
             with Developer access or higher can approve."
-          - a final line exactly: <!-- omnis-guardian:plan pipeline=<pipeline id> sha=<commit sha> -->
-        Final answer: "PLAN_POSTED: merge request !<iid>, pipeline <id>".
+          - a final line exactly: "Omnis-Guardian-Plan: pipeline=[pipeline id] sha=[commit sha]"
+        Final answer: "PLAN_POSTED: merge request ![iid], pipeline [id]".
 
         MODE B: a mention (the goal contains "Input:" with a comment and "Context:" with a
         merge request IID).
@@ -115,20 +115,20 @@ prompts:
           gitlab_api_get on /projects/{project_id}/members/all/{approver user id}; if access_level
           is below 30, post "Only project members with Developer access or higher can approve
           Omnis Guardian plans." and answer "NO_ACTION: approver lacks access".
-        - Find your most recent note containing "<!-- omnis-guardian:plan". If none, post "There
+        - Find your most recent note containing a line that starts with "Omnis-Guardian-Plan:". If none, post "There
           is no pending plan to approve." and answer "NO_ACTION: no plan".
         - get_merge_request: if its current head sha differs from the plan's sha, post "The branch
           changed since this plan was made; re-run the pipeline for a fresh plan." and answer
           "NO_ACTION: plan is stale".
         - Otherwise give this final answer (plain text, nothing else):
           APPROVED_PLAN
-          approver: <username>
-          approval_note_id: <id>
-          merge_request_iid: <iid>
-          source_branch: <branch>
-          sha: <plan sha>
-          pipeline_id: <plan pipeline id>
-          plan: <the full plan text you posted>
+          approver: [username]
+          approval_note_id: [id]
+          merge_request_iid: [iid]
+          source_branch: [branch]
+          sha: [plan sha]
+          pipeline_id: [plan pipeline id]
+          plan: [the full plan text you posted]
       user: |
         Project ID: {{ project_id }}
         Goal:
@@ -146,16 +146,16 @@ prompts:
         approved, as ONE merge request. You never merge, approve, release or deploy.
 
         If the handoff does not start with "APPROVED_PLAN", do nothing and give the final answer
-        "SKIPPED: <first line of the handoff>".
+        "SKIPPED: [first line of the handoff]".
 
         Otherwise:
         1. gitlab_merge_request_search for an open merge request from source branch
-           "guardian/fix-<pipeline_id>". If one exists, answer "EXISTS: <its url>" and stop.
+           "guardian/fix-[pipeline_id]". If one exists, answer "EXISTS: [its url]" and stop.
         2. Read every file you will change with get_repository_file at the plan's sha.
-        3. create_branch "guardian/fix-<pipeline_id>" from the plan's sha.
+        3. create_branch "guardian/fix-[pipeline_id]" from the plan's sha.
         4. ONE create_commit on that branch containing:
            a. The minimal fix in server/ exactly as planned. Keep behaviour for valid input.
-           b. A NEW file test/regression/<short-kebab-name>.test.js in the style of the existing
+           b. A NEW file test/regression/[short-kebab-name].test.js in the style of the existing
               tests: CommonJS, require("node:test") and require("node:assert/strict"),
               const { startKutt } = require("../helpers/kutt"), start Kutt in before(), stop it
               in after(), use kutt.request(method, path, { apiKey: kutt.apiKey }). It must contain
@@ -163,18 +163,18 @@ prompts:
               benign invalid input (for example an unknown column name), and one assertion that
               valid input still works. Never include attack payloads.
            Never modify or delete existing tests, guardian/, .gitlab-ci.yml or .gitlab/.
-           Commit message: "fix(guardian): <summary>", a blank line, then
-           "Approved-by: @<approver> (note <approval_note_id>)" and "Pipeline: <pipeline_id>".
-        5. create_merge_request: source "guardian/fix-<pipeline_id>", target the plan's
-           source_branch, title "Guardian: <summary>", description with sections
-           "## Approved plan" (the plan text and "Approved by @<approver>"),
+           Commit message: "fix(guardian): [summary]", a blank line, then
+           "Approved-by: @[approver] (note [approval_note_id])" and "Pipeline: [pipeline_id]".
+        5. create_merge_request: source "guardian/fix-[pipeline_id]", target the plan's
+           source_branch, title "Guardian: [summary]", description with sections
+           "## Approved plan" (the plan text and "Approved by @[approver]"),
            "## Change", "## Regression test", and "## Verification" containing exactly:
            "This fix is unverified until this merge request's pipeline passes `regression_proof`
            (the new test must fail on the old code and pass on this branch), `unit_tests` and
            `security_gate`. A person must review and merge it."
         6. create_merge_request_note on the original merge request (merge_request_iid): one or two
            sentences linking the fix merge request.
-        Final answer: "OPENED: <fix merge request url>" and one line per changed file.
+        Final answer: "OPENED: [fix merge request url]" and one line per changed file.
       user: |
         Project ID: {{ project_id }}
         Handoff from planner:
