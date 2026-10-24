@@ -92,11 +92,20 @@ export function buildReport(jobs, { env = process.env, now = new Date() } = {}) 
 
 async function fetchJobs(env) {
   const url = `${env.CI_API_V4_URL}/projects/${env.CI_PROJECT_ID}/pipelines/${env.CI_PIPELINE_ID}/jobs?per_page=100&include_retried=true`;
-  // Public projects allow unauthenticated reads; otherwise set CARBON_API_TOKEN (read_api).
-  const headers = env.CARBON_API_TOKEN ? { 'PRIVATE-TOKEN': env.CARBON_API_TOKEN } : {};
-  const res = await fetch(url, { headers });
-  if (!res.ok) throw new Error(`GitLab API ${res.status} listing pipeline jobs`);
-  return res.json();
+  // Public projects allow anonymous reads. Otherwise try the job's own token, then
+  // an optional read_api token in CARBON_API_TOKEN.
+  const attempts = [
+    {},
+    env.CI_JOB_TOKEN ? { 'JOB-TOKEN': env.CI_JOB_TOKEN } : null,
+    env.CARBON_API_TOKEN ? { 'PRIVATE-TOKEN': env.CARBON_API_TOKEN } : null
+  ].filter(Boolean);
+  let last = null;
+  for (const headers of attempts) {
+    const res = await fetch(url, { headers });
+    if (res.ok) return res.json();
+    last = res.status;
+  }
+  throw new Error(`GitLab API ${last} listing pipeline jobs (project private? make it public or set CARBON_API_TOKEN)`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

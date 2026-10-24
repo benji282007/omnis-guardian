@@ -33,7 +33,7 @@ echo "Built and pushed $IMAGE_REF"
 node guardian/ci/provenance.mjs --image-info dist/image.json --out dist/provenance.intoto.json
 node guardian/ci/verify-provenance.mjs --dist dist --expect-commit "$CI_COMMIT_SHA"
 
-if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+if [ "${CI_COMMIT_BRANCH:-}" = "$CI_DEFAULT_BRANCH" ]; then
   export COSIGN_YES=true
   cosign sign "$IMAGE_REF"
   cosign attest --type slsaprovenance1 --predicate dist/provenance.predicate.json "$IMAGE_REF"

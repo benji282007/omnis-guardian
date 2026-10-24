@@ -290,6 +290,7 @@ deploy_production:
 carbon_report:
   image: $NODE_IMAGE
   stage: deploy
+  allow_failure: true
   needs:
     - { job: build_image, artifacts: false }
     - { job: smoke_image, artifacts: false }
