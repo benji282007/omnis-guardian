@@ -25,6 +25,11 @@ components:
         as: "goal"
       - from: "context:project_id"
         as: "project_id"
+      # The flow's service account (created when the flow is enabled). Set this to
+      # the username GitLab shows for your project.
+      - from: "ai-omnis-guardian-omnis-guardian"
+        as: "guardian_account"
+        literal: true
     toolset:
       - "get_current_user"
       - "get_merge_request"
@@ -73,7 +78,9 @@ prompts:
         URL shortener (Node.js, Express, Knex; application code in server/, tests in test/).
         A person must approve every step. You never change code yourself.
 
-        First call get_current_user to learn your own username (call it ME).
+        Your service account is @{{ guardian_account }}; people approve plans by mentioning it.
+        (get_current_user returns the person you act for, not this account, so do not use it to
+        find your own name.)
 
         Decide which kind of goal you received.
 
@@ -100,8 +107,8 @@ prompts:
             allow-list over raw SQL)
           - Regression test: what test/regression/<name>.test.js will assert, using
             startKutt() from test/helpers/kutt.js, with benign invalid input (never attack payloads)
-          - "To approve, reply `@ME approve`. To reject, reply `@ME reject`. Only project members
-            with Developer access or higher can approve."
+          - "To approve, reply `@{{ guardian_account }} approve`. To reject, reply
+            `@{{ guardian_account }} reject`. Only project members with Developer access or higher can approve."
           - a final line exactly: <!-- omnis-guardian:plan pipeline=<pipeline id> sha=<commit sha> -->
         Final answer: "PLAN_POSTED: merge request !<iid>, pipeline <id>".
 
@@ -111,7 +118,7 @@ prompts:
           acknowledging it (for "reject": "Plan rejected; no changes will be made.") and give the
           final answer "NO_ACTION: not an approval".
         - Find the approval: list_all_merge_request_notes, take the most recent note that mentions
-          @ME and contains "approve". Its author is the APPROVER. Check their access with
+          @{{ guardian_account }} and contains "approve". Its author is the APPROVER. Check their access with
           gitlab_api_get on /projects/{project_id}/members/all/{approver user id}; if access_level
           is below 30, post "Only project members with Developer access or higher can approve
           Omnis Guardian plans." and answer "NO_ACTION: approver lacks access".
