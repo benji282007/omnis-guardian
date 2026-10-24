@@ -10,7 +10,9 @@ the investigative work and **a person approves every step**:
 2. **A maintainer approves the plan** by replying `@<guardian account> approve`. The flow
    checks they have Developer access, then opens a fix MR with a regression test.
 3. **CI proves the fix:** `regression_proof` runs the new test against the old code (it must
-   fail) and the fix (it must pass). **A person reviews and merges.**
+   fail) and the fix (it must pass). If CI rejects Duo's work, the maintainer can reply
+   `@<guardian account> revise`; the flow reads the CI failures, posts a revision plan and pushes a
+   corrected commit. **A person reviews and merges.**
 4. **A person approves the release:** the manual `release_gate` checks who started it and
    re-verifies the signed image and its SLSA provenance.
 5. **Cloud Run deploy with a safety net:** a no-traffic candidate is smoke-tested, promoted,
@@ -35,22 +37,43 @@ https://github.com/thedevs-network/kutt. What we added is listed in
 | Monitor | Cloud Run candidate smoke → promote → production check → auto-rollback | — |
 | Govern | Sigstore keyless signature + signed SLSA v1 attestation on the image digest, verified before release; per-pipeline SCI carbon report | — |
 
-## The first thing it caught
+## Live
 
-Running Guardian's dependency gate on unmodified upstream Kutt v3.2.6 found **3 critical
-and 5 high npm advisories** (handlebars, proxy-addr, body-parser, mysql2, nanoid,
-nodemailer and others). Minor upgrades plus nodemailer 10 cleared all critical and high
-findings, and every Kutt integration test still passed. Two moderate advisories remain
-because fixing them would require downgrading Bull; they are reported, not hidden.
+- **Kutt on Google Cloud Run:** https://kutt-bda5naktma-uc.a.run.app (deployed by `deploy_production` after an approved release)
+- **Evidence dashboard (GitLab Pages):** https://omnis-guardian-af8ca1.gitlab.io
+- **Release:** [guardian-19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-19), signed image + SLSA provenance, approved through `release_gate`
 
-## Verification status
+## What happened, with links
 
-| Claim | Status |
-|---|---|
-| 12 Kutt integration tests + 37 Guardian tests | ✅ Pass locally |
-| Semgrep rules: 0 findings on upstream Kutt, block the demo `orderByRaw` injection | ✅ Verified locally (Semgrep 1.182.1) |
-| Demo loop on real Kutt: feature blocked → allow-list fix PROVEN → tests and gate pass | ✅ Dry run locally; fix written by hand to test CI, not by Duo |
-| Pipeline on GitLab, Duo flow run, image signing, Cloud Run deploy | ⏳ Add links after the first runs |
+Everything below is a real run in this project. Nothing is staged in a script.
+
+1. **Day one: upstream Kutt blocked.** The first pipeline on unmodified Kutt v3.2.6 failed
+   `security_gate` with **3 critical and 5 high** npm advisories
+   ([pipeline #2](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2984706966)).
+2. **Dependencies fixed, reviewed by Duo.** [MR !1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/1) upgraded them
+   (0 critical, 0 high left). GitLab Duo Code Review asked for an `engines` field and a lockfile
+   check; both were answered before a person merged it.
+3. **Supply chain checked strictly.** The first signed `main` build verified the image signature and
+   the provenance attestation, but the stricter predicate check failed on a cosign key-encoding
+   quirk, so the gate would have refused the release. [MR !2](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/2) fixed it;
+   Duo's review tightened the fix from "lower-case every key" to renaming one key.
+4. **Approved release, signed and deployed.** In [pipeline #19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2984791302) a person
+   started `release_gate` (recorded approver: `fl4sh28`); the image was copied by digest to Artifact
+   Registry and deployed to Cloud Run, where all 5 production smoke checks passed.
+5. **A risky feature arrives.** [MR !4](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4) adds `?sort=column:direction` using
+   `orderByRaw` with interpolated input. Its tests pass; `security_gate` blocks it
+   ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830)).
+6. **Duo diagnoses and waits.** The failed pipeline triggered the Omnis Guardian flow, which posted a
+   diagnosis and fix plan on MR !4 and did nothing further until a maintainer replied `approve`.
+7. **Duo fixes, CI judges.** The flow opened [MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6): an allow-list with
+   Knex `orderBy` (the injection finding is gone) plus a regression test. CI then **rejected Duo's
+   test**: it sorted Kutt's UUID link ids numerically, so it failed on its own fix
+   ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985049272)). An agent's work only counts once CI proves it.
+8. **Hardened by review.** GitLab Duo Code Review found three security gaps in the flow's own
+   approval logic (forged plans, revisions touching CI, fail-open access checks); all were fixed
+   in [MR !5](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/5).
+
+Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines).
 
 ## Set up and demo
 
@@ -60,6 +83,9 @@ because fixing them would require downgrading Bull; they are reported, not hidde
 
 ## Limitations
 
+- The flow's token may not read project membership (HTTP 403 `insufficient_scope`). In that one
+  case it relies on GitLab's composite identity, which blocks branch and commit creation for anyone
+  below Developer; a 404, a low access level or any other error refuses.
 - Duo's output depends on the model. If it declines or writes a weak fix, the pipeline says so (`regression_proof` fails); it does not pass.
 - The live demo runs Kutt on SQLite inside one Cloud Run instance, so data resets on each release. Production use would point Kutt at Cloud SQL.
 - Provenance is generated by this project's CI and signed with Sigstore; it is not a SLSA Build L3 claim.
