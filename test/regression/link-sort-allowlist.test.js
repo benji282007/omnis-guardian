@@ -23,7 +23,7 @@ function idsOf(res) {
   return res.json.data.map((link) => link.id);
 }
 
-const defaultOrder = () => [...createdIds].sort((a, b) => b - a);
+const defaultOrder = () => [...createdIds].reverse();
 
 test("an unknown sort column falls back to the default order", async () => {
   const res = await kutt.request("GET", "/api/v2/links?sort=not_a_column:desc", { apiKey: kutt.apiKey });
@@ -40,7 +40,7 @@ test("an unknown sort direction falls back to the default order", async () => {
 test("a valid sort still works", async () => {
   const res = await kutt.request("GET", "/api/v2/links?sort=created_at:asc", { apiKey: kutt.apiKey });
   assert.equal(res.status, 200, res.text);
-  assert.deepEqual([...idsOf(res)].sort((a, b) => a - b), [...createdIds].sort((a, b) => a - b));
+  assert.deepEqual([...idsOf(res)].sort(), [...createdIds].sort());
   const times = res.json.data.map((link) => new Date(link.created_at).getTime());
   assert.deepEqual(times, [...times].sort((a, b) => a - b));
 });
