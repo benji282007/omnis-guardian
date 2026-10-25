@@ -9,8 +9,8 @@ export const STAGES = [
   { key: 'package', label: 'Package', what: 'Container image built and booted', jobs: ['build_image', 'smoke_image'] },
   { key: 'secure', label: 'Secure', what: 'Semgrep, secrets and dependency gate', jobs: ['security_gate'] },
   { key: 'release', label: 'Release', what: 'Approver-checked gate, then GitLab release', jobs: ['release_gate', 'publish_release'] },
-  { key: 'configure', label: 'Configure', what: 'Runtime config as code, drift-checked hourly; pipeline and flow validated', jobs: ['config_check'], evidence: 'runtime' },
-  { key: 'monitor', label: 'Monitor', what: 'Hourly live probes; canary, promote, auto-rollback on deploy', jobs: ['deploy_production', 'monitor_production'] },
+  { key: 'configure', label: 'Configure', what: 'Runtime config as code, drift-checked every two hours; pipeline and flow validated', jobs: ['config_check'], evidence: 'runtime' },
+  { key: 'monitor', label: 'Monitor', what: 'Live probes every two hours; canary, promote, auto-rollback on deploy', jobs: ['deploy_production', 'monitor_production'] },
   { key: 'govern', label: 'Govern', what: 'Signatures, provenance and carbon verified', jobs: ['verify_signatures', 'carbon_report'], evidence: 'provenance' }
 ];
 

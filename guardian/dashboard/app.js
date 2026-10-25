@@ -49,7 +49,7 @@ function api(config, path) {
 }
 
 async function loadLive(config) {
-  // Release pipelines only: hourly scheduled monitor runs are shown in Monitor/Configure, not here.
+  // Release pipelines only: scheduled monitor runs are shown in Monitor/Configure, not here.
   const pipelines = await getJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=push&per_page=8&order_by=id&sort=desc`));
   const latest = pipelines[0] ?? null;
   const jobs = latest ? await getJson(api(config, `/pipelines/${latest.id}/jobs?per_page=100&include_retried=true`)) : [];
@@ -66,7 +66,7 @@ async function loadLive(config) {
   );
   const releases = (await tryJson(api(config, '/releases?per_page=5'))) ?? [];
   // The newest successful deploy, read by job id: "latest artifact on main" would resolve to an
-  // hourly monitor pipeline, which has no deploy job.
+  // scheduled monitor pipeline, which has no deploy job.
   let deploy = null;
   for (const p of pipelines) {
     const pJobs = p.id === latest?.id ? jobs : (await tryJson(api(config, `/pipelines/${p.id}/jobs?per_page=100`))) ?? [];

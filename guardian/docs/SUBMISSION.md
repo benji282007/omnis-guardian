@@ -30,7 +30,7 @@ teams can check it is safe to ship.
 
 **Before and after (Path B):** upstream Kutt v3.2.6 had three GitHub Actions workflows that build
 and push a Docker image, no tests, no security scanning, and shipped with 3 critical and 5 high npm
-advisories. On GitLab with Omnis Guardian it has 16 CI jobs across merge request, release and hourly monitor pipelines, 19 integration and regression
+advisories. On GitLab with Omnis Guardian it has 16 CI jobs across merge request, release and scheduled monitor pipelines, 19 integration and regression
 tests, three scanners behind a fail-closed gate, a Duo flow that diagnoses and fixes on approval,
 proof that every fix works, signed releases a person approves, and a Cloud Run deploy with candidate
 testing and automatic rollback. The full table is in the README.
@@ -59,11 +59,11 @@ workflow where a person approves every step.
    **Cloud Run**: a no-traffic candidate is smoke-tested, promoted, re-checked, and rolled back
    automatically if production fails. Google Cloud access is keyless (GitLab OIDC → Workload
    Identity Federation, trusted only for this project's protected `main`).
-7. **Watch production.** Every hour a scheduled pipeline re-runs the live probes and checks for
+7. **Watch production.** Every two hours a scheduled pipeline re-runs the live probes and checks for
    configuration drift: Cloud Run must serve the last approved digest with exactly the settings in
    `runtime-config.json`. A failure triggers the same Duo flow, which reads the logs and opens an
    **incident issue** with a diagnosis and a recommended action. It never touches production; a
-   person acts, and the next hourly check confirms the fix.
+   person acts, and the next scheduled check confirms the fix.
 8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, answers "is
    this safe to ship?" in Duo Chat on any merge request or incident, citing the real gate results,
    and names the decision that is still the maintainer's.
@@ -116,6 +116,10 @@ Bull downgrade, so they stay reported in the pipeline rather than hidden.
 ## Accomplishments we're proud of
 
 - A complete loop on a real, popular app: detect → plan → approve → fix → prove → release → deploy.
+- A real drift drill: someone changed production by hand, the scheduled monitor caught it, Duo opened
+  an incident with the exact fix, a person applied it through the approved deploy, and the next check
+  passed. Duo never touched production
+  ([incident #1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1)).
 - Every result on the dashboard and in the README links to a real pipeline, merge request, job or release.
 - Keyless end to end: no stored cloud keys, no signing keys.
 

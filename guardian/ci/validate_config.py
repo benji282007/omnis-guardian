@@ -33,6 +33,8 @@ WEB_TOOLS = {
     "list_vulnerabilities", "get_vulnerability_details", "list_security_findings",
     "get_security_finding_details", "gitlab_api_get", "gitlab_graphql",
     "gitlab_documentation_search", "get_current_user", "extract_lines_from_text",
+    # Listed in the AI > Agents tool picker (Beta), checked 2026-10-25.
+    "get_pipeline", "list_pipelines",
 }
 IDE_ONLY_TOOLS = {
     "read_file", "read_files", "create_file_with_contents", "edit_file", "list_dir",

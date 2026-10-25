@@ -2,7 +2,7 @@
 // Find deploy-result.json from the newest successful deploy_production job on the default branch.
 //
 // Why not /jobs/artifacts/main/raw/deploy-result.json?job=deploy_production: that endpoint reads the
-// latest *successful pipeline* on the ref, and an hourly scheduled monitor pipeline is one too (with no
+// latest *successful pipeline* on the ref, and an scheduled monitor pipeline is one too (with no
 // deploy job), so it would 404 from the second hour on. Instead walk recent push pipelines on the ref
 // (release pipelines), find the deploy job, and read its artifact by job id.
 //
