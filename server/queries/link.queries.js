@@ -29,6 +29,26 @@ const selectable_admin = [
   "users.email as email"
 ];
 
+// Columns and directions that ?sort=<column>:<direction> may use.
+const sortableColumns = [
+  "visit_count",
+  "created_at",
+  "updated_at",
+  "address",
+  "target",
+  "description"
+];
+const sortDirections = ["asc", "desc"];
+
+function parseSort(sort) {
+  if (typeof sort !== "string") return null;
+  const [column, direction = "desc"] = sort.split(":");
+  const normalizedDirection = direction.toLowerCase();
+  if (!sortableColumns.includes(column)) return null;
+  if (!sortDirections.includes(normalizedDirection)) return null;
+  return { column, direction: normalizedDirection };
+}
+
 function normalizeMatch(match) {
   const newMatch = { ...match };
 
@@ -123,8 +143,16 @@ async function get(match, params) {
     .select(...selectable)
     .where(normalizeMatch(match))
     .offset(params.skip)
-    .limit(params.limit)
-    .orderBy("links.id", "desc");
+    .limit(params.limit);
+
+  // Sort by any column, e.g. ?sort=visit_count:desc
+  const sort = parseSort(params?.sort);
+  if (sort) {
+    // links.id breaks ties so offset/limit pagination stays stable.
+    query.orderBy("links." + sort.column, sort.direction).orderBy("links.id", "desc");
+  } else {
+    query.orderBy("links.id", "desc");
+  }
   
   if (params?.search) {
     query[knex.compatibleILIKE](
