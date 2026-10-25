@@ -40,7 +40,7 @@ IDE_ONLY_TOOLS = {
 }
 COMPONENT_TYPES = {"AgentComponent", "OneOffComponent", "DeterministicStepComponent", "HumanInputComponent"}
 FORBIDDEN_TOP_LEVEL = {"name", "description", "product_group"}  # rejected for custom flows
-UNSAFE_PROMPT = re.compile(r"<!--|<[^>\n]*>|\[//\]:|\[comment\]:|[­​-‏‪-‮⁠-⁤⁦-⁯﻿\U000e0000-\U000e007f]")
+UNSAFE_PROMPT = re.compile(r"<!--|<[^>\n]*>|\[//\]:|\[comment\]:|[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff\U000e0000-\U000e007f]")
 WRITE_TOOL_PREFIXES = ("create_", "update_", "submit_", "set_", "add_", "reply_", "link_", "run_")
 
 
@@ -188,6 +188,10 @@ def validate_ci(path: Path) -> list[str]:
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     problems = []
+    # The hidden-character pattern must stay as \uXXXX escapes: literal invisible characters
+    # here would be unreviewable and easy to corrupt.
+    if not Path(__file__).read_text(encoding="utf-8").isascii():
+        problems.append("guardian/ci/validate_config.py: contains non-ASCII characters; use \\uXXXX escapes")
     flows = sorted((root / ".gitlab/duo/flows").glob("*.yml"))
     if not flows:
         problems.append("no flow definitions found in .gitlab/duo/flows/")
