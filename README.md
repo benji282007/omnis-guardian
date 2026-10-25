@@ -34,7 +34,7 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 
 | | Upstream Kutt v3.2.6 (before) | With Omnis Guardian on GitLab (after) |
 |---|---|---|
-| CI | 3 GitHub Actions workflows that build and push a Docker image | 15-job GitLab pipeline across verify, secure, package, release and deploy |
+| CI | 3 GitHub Actions workflows that build and push a Docker image | 16-job GitLab pipeline across verify, secure, package, release and deploy, plus an hourly production monitor |
 | Tests | None | 19 integration and regression tests that boot a real Kutt |
 | Security | No scanning; v3.2.6 shipped with **3 critical and 5 high** npm advisories | Semgrep (Knex-aware rules), Secret Detection and npm audit, behind a fail-closed `security_gate` |
 | When a check fails | A maintainer investigates alone | A Duo flow diagnoses, proposes a plan and waits; on approval it opens a fix MR with a regression test |
@@ -42,20 +42,21 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 | Code review | Manual only, no automated review | GitLab Duo Code Review on every MR, plus a person who merges |
 | Release | Unsigned image pushed to Docker Hub on every push to `main` and on each GitHub release | Approver-checked `release_gate`, Sigstore-signed image, SLSA v1 provenance re-verified before release |
 | Deploy | Left to each self-hoster | Cloud Run by digest: no-traffic candidate, smoke test, promote, automatic rollback |
+| After deploy | Nothing watches production | Hourly live probes and configuration drift checks; a failure makes Duo open an incident with a diagnosis |
 | Evidence | None | Public dashboard built from live pipeline data, with SCI carbon per pipeline |
 
 ## Lifecycle coverage
 
 | Stage | What runs | Human approval |
 |---|---|---|
-| Plan | Duo **planner** diagnoses the failure and posts a plan on the MR | approve the plan |
+| Plan | Duo **planner** diagnoses a failed MR and posts a plan on it; for a failed production check it opens an **incident issue** with a diagnosis and recommended action | approve the plan · act on the incident |
 | Create | Duo **executor** opens `guardian/fix-*` with the fix + a regression test | — |
 | Verify | Kutt integration tests (new; upstream had none) · `regression_proof` | review & merge |
 | Secure | Semgrep (Knex-aware rules) · GitLab Secret Detection · npm audit → `security_gate`, fails closed | — |
 | Package | Container image built from the commit, booted and smoke-tested in CI | — |
 | Release | Approver-checked `release_gate` → GitLab release | start the gate |
-| Configure | `config_check` validates the pipeline and the Duo flow | — |
-| Monitor | Cloud Run candidate smoke → promote → production check → auto-rollback | — |
+| Configure | Cloud Run runtime settings as code ([`runtime-config.json`](guardian/gcp/runtime-config.json)), applied by every deploy and **drift-checked hourly**: live traffic, image digest, CPU, memory, scaling, secrets and labels must match the approved release · `config_check` validates the pipeline, the Duo flow and the Duo agent | change config by MR |
+| Monitor | Every deploy: candidate smoke → promote → production check → auto-rollback. **Every hour**: scheduled `monitor_production` re-runs the live probes; a failure triggers the Duo flow to open an incident | act on the incident |
 | Govern | Sigstore keyless signature + signed SLSA v1 attestation on the image digest, verified before release; per-pipeline SCI carbon report | — |
 
 ## Live

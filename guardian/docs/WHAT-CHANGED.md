@@ -8,7 +8,9 @@ new work done for the hackathon, after 5 October 2026.
 
 | Area | Files |
 |---|---|
-| Duo Agent Platform flow (assisted plan → approve → fix → revise) | `.gitlab/duo/flows/omnis-guardian.yml`, `AGENTS.md` |
+| Duo Agent Platform flow (assisted plan → approve → fix → revise; incident triage) | `.gitlab/duo/flows/omnis-guardian.yml`, `AGENTS.md` |
+| Duo custom agent: read-only Release Assistant for Duo Chat | `.gitlab/duo/agents/release-assistant.yml` |
+| Hourly production monitor: live probes + configuration drift detection | `guardian/ci/monitor.mjs`, `guardian/ci/monitor-cloudrun.sh`, `guardian/gcp/runtime-config.json` |
 | CI/CD pipeline (verify, secure, package, release, deploy) | `.gitlab-ci.yml` |
 | Integration test suite (upstream Kutt has none) | `test/`, `test/helpers/kutt.js` |
 | Security gate, Knex-aware Semgrep rules, npm audit report | `guardian/ci/security-gate.mjs`, `guardian/semgrep/rules.yml`, `guardian/ci/dependency-report.mjs` |

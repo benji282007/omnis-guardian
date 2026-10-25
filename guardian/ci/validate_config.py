@@ -40,6 +40,27 @@ IDE_ONLY_TOOLS = {
 }
 COMPONENT_TYPES = {"AgentComponent", "OneOffComponent", "DeterministicStepComponent", "HumanInputComponent"}
 FORBIDDEN_TOP_LEVEL = {"name", "description", "product_group"}  # rejected for custom flows
+UNSAFE_PROMPT = re.compile(r"<!--|<[^>\n]*>|\[//\]:|\[comment\]:|[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff\U000e0000-\U000e007f]")
+WRITE_TOOL_PREFIXES = ("create_", "update_", "submit_", "set_", "add_", "reply_", "link_", "run_")
+
+
+def validate_agent(path: Path) -> list[str]:
+    """Custom agents (pasted into AI > Agents) must be read-only and use web tools only."""
+    errors: list[str] = []
+    agent = yaml.safe_load(path.read_text()) or {}
+    for key in ("name", "description", "system_prompt", "tools"):
+        if not agent.get(key):
+            errors.append(f"missing '{key}'")
+    for tool in agent.get("tools") or []:
+        if tool in IDE_ONLY_TOOLS:
+            errors.append(f"tool '{tool}' is IDE-only")
+        elif tool not in WEB_TOOLS:
+            errors.append(f"unknown tool '{tool}'")
+        elif tool.startswith(WRITE_TOOL_PREFIXES):
+            errors.append(f"tool '{tool}' writes to GitLab; the release assistant must stay read-only")
+    if UNSAFE_PROMPT.search(agent.get("system_prompt") or ""):
+        errors.append("system_prompt contains HTML comments, tags or hidden characters, which GitLab rejects")
+    return errors
 
 
 def validate_flow(path: Path) -> list[str]:
@@ -68,7 +89,7 @@ def validate_flow(path: Path) -> list[str]:
         # GitLab rejects prompts containing HTML comments, tags, markdown link
         # comments or hidden unicode characters (SecurityException on create).
         for role, text in tmpl.items():
-            if isinstance(text, str) and re.search(r"<!--|<[^>\n]*>|\[//\]:|\[comment\]:|[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff\U000e0000-\U000e007f]", text):
+            if isinstance(text, str) and UNSAFE_PROMPT.search(text):
                 err(f"prompt {pid} ({role}): contains HTML comments, tags or hidden characters, which GitLab rejects")
 
     components = flow.get("components", [])
@@ -167,17 +188,24 @@ def validate_ci(path: Path) -> list[str]:
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     problems = []
+    # The hidden-character pattern must stay as \uXXXX escapes: literal invisible characters
+    # here would be unreviewable and easy to corrupt.
+    if not Path(__file__).read_text(encoding="utf-8").isascii():
+        problems.append("guardian/ci/validate_config.py: contains non-ASCII characters; use \\uXXXX escapes")
     flows = sorted((root / ".gitlab/duo/flows").glob("*.yml"))
     if not flows:
         problems.append("no flow definitions found in .gitlab/duo/flows/")
     for f in flows:
         problems += [f"{f.relative_to(root)}: {e}" for e in validate_flow(f)]
+    agents = sorted((root / ".gitlab/duo/agents").glob("*.yml"))
+    for a in agents:
+        problems += [f"{a.relative_to(root)}: {e}" for e in validate_agent(a)]
     problems += [f".gitlab-ci.yml: {e}" for e in validate_ci(root / ".gitlab-ci.yml")]
     if not (root / "AGENTS.md").exists():
         problems.append("AGENTS.md is missing")
     for p in problems:
         print(f"FAIL  {p}")
-    print(f"Validated {len(flows)} flow(s) and .gitlab-ci.yml: {'OK' if not problems else f'{len(problems)} problem(s)'}")
+    print(f"Validated {len(flows)} flow(s), {len(agents)} agent(s) and .gitlab-ci.yml: {'OK' if not problems else f'{len(problems)} problem(s)'}")
     return 1 if problems else 0
 
 
