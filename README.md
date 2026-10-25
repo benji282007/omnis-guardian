@@ -41,7 +41,9 @@ https://github.com/thedevs-network/kutt. What we added is listed in
 
 - **Kutt on Google Cloud Run:** https://kutt-bda5naktma-uc.a.run.app (deployed by `deploy_production` after an approved release)
 - **Evidence dashboard (GitLab Pages):** https://omnis-guardian-af8ca1.gitlab.io
-- **Release:** [guardian-19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-19), signed image + SLSA provenance, approved through `release_gate`
+- **Current release:** [guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64), signed image + SLSA provenance, approved through `release_gate`
+  and deployed as a no-traffic candidate, smoke-tested, then promoted ([pipeline #64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986094858))
+- **First release:** [guardian-19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-19)
 
 ## What happened, with links
 
@@ -82,6 +84,12 @@ Everything below is a real run in this project. Nothing is staged in a script.
     feature test that only counted rows. A follow-up commit, written by hand rather than by the flow,
     fixed both. Duo approved, the pipeline passed
     ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986045010)), and a person merged MR !4.
+11. **Second release: candidate, then promote.** In [pipeline #64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986094858)
+    a person started `release_gate` again. `deploy_production`
+    ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17446039635)) deployed revision
+    `kutt-00003-vav` with 0% of traffic, passed all 5 smoke checks against the candidate URL, promoted
+    it over `kutt-00002-g72`, and passed the same 5 checks on production. Release:
+    [guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64).
 
 Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines).
 
