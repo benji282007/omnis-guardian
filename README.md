@@ -72,6 +72,16 @@ Everything below is a real run in this project. Nothing is staged in a script.
 8. **Hardened by review.** GitLab Duo Code Review found three security gaps in the flow's own
    approval logic (forged plans, revisions touching CI, fail-open access checks); all were fixed
    in [MR !5](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/5).
+9. **Duo revises, CI proves it.** The maintainer replied `revise` on MR !6. The flow read the CI
+   failure and pushed one commit that touched only the regression test. `regression_proof` then
+   printed `VERDICT: PROVEN — 2 assertion(s) fail on the old code and all pass on the fix`
+   ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17445549698), [pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985999137)),
+   and a person merged MR !6 into the feature branch.
+10. **Duo's review keeps going.** Re-reviewing MR !4, GitLab Duo Code Review confirmed the injection
+    was fixed but kept two findings open: no `links.id` tiebreaker for stable pagination, and a
+    feature test that only counted rows. A follow-up commit, written by hand rather than by the flow,
+    fixed both. Duo approved, the pipeline passed
+    ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986045010)), and a person merged MR !4.
 
 Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines).
 

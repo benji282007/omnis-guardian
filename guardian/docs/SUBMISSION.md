@@ -60,7 +60,7 @@ Kutt test still passed.
 - **GitLab Duo Agent Platform:** a custom flow (flow registry v1) with a planner and an executor
   agent, using only GitLab API tools. It is triggered by *Pipeline events → Failed* and *Mention*,
   and runs under composite identity. GitLab Duo Code Review reviewed every merge request.
-- **GitLab CI/CD:** 14 jobs across verify, secure, package, release and deploy, running on hosted
+- **GitLab CI/CD:** 15 jobs across verify, secure, package, release and deploy, running on hosted
   runners. Also used: the Secret Detection template, the release keyword, Pages, protected
   variables, `id_tokens` for Sigstore and for Google Cloud, and dotenv artifacts.
 - **Google Cloud:** Cloud Run, Artifact Registry, Secret Manager, and Workload Identity Federation
@@ -69,13 +69,18 @@ Kutt test still passed.
   v1 provenance built from the registry digest, verified again before release.
 - **Kutt:** imported with full upstream history. We added an integration test suite (upstream has
   none), dependency upgrades, and `engines`. Everything else is in `guardian/`.
-- 12 Kutt integration tests and 38 tests for the Guardian tooling.
+- 19 Kutt integration and regression tests, and 38 tests for the Guardian tooling.
 
 ## Challenges we ran into
 
 - **The agent's first test was wrong, and CI caught it.** Duo's fix removed the injection, but its
   regression test sorted Kutt's UUID link ids numerically and failed on its own fix. That is why the
-  workflow never trusts the agent, and why we added the approved `revise` step.
+  workflow never trusts the agent, and why we added the approved `revise` step. After a `revise`,
+  Duo rewrote only the test, and `regression_proof` printed **PROVEN**: the new assertions fail on
+  the old code and pass on the fix.
+- **Duo's code review held the feature to a higher bar than its tests did.** After the injection
+  fix, GitLab Duo Code Review still blocked the merge until sorting had a stable tiebreaker and a
+  test that checks real ordering. We fixed both, and Duo approved.
 - **The gates caught our own mistakes too.** The first signed release failed our strict provenance
   comparison because cosign re-encodes one SLSA field name, so the gate refused to call it verified
   until we fixed the comparison.
