@@ -64,9 +64,11 @@ workflow where a person approves every step.
    `runtime-config.json`. A failure triggers the same Duo flow, which reads the logs and opens an
    **incident issue** with a diagnosis and a recommended action. It never touches production; a
    person acts, and the next scheduled check confirms the fix.
-8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, answers "is
-   this safe to ship?" in Duo Chat on any merge request or incident, citing the real gate results,
-   and names the decision that is still the maintainer's.
+8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, is created and
+   enabled in the project for Duo Chat. It is built to answer "is this safe to ship?" on a merge
+   request or incident from the gate results and job logs, and to name the decision that is still
+   the maintainer's. Our group's Duo credits ran out before we recorded a chat session with it, so
+   unlike everything else here it has no public run to link.
 9. **Show the evidence.** A Pages dashboard shows every stage from live GitLab data and the
    pipeline's own artifacts, plus a per-pipeline SCI carbon figure. Nothing on it is simulated.
 
