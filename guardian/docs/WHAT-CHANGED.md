@@ -31,4 +31,6 @@ new work done for the hackathon, after 5 October 2026.
 
 Kutt runs on **Google Cloud Run** (deployed by `deploy_production` after each approved
 release). Live URL: https://kutt-bda5naktma-uc.a.run.app (first deployed 24 Oct 2026 by
-[pipeline #19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2984791302)).
+[pipeline #19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2984791302); current release
+[guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64), deployed 25 Oct 2026 as a
+smoke-tested candidate and then promoted by [pipeline #64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986094858)).
