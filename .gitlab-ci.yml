@@ -6,6 +6,8 @@
 # release  verify_signatures → release_gate (manual: the approval) → publish_release
 # deploy   deploy_production (Cloud Run: candidate → smoke → promote → verify → auto-rollback)
 #          carbon_report · pages (evidence dashboard)
+# hourly   monitor_production (schedule only): live probes + drift against the release
+#          and guardian/gcp/runtime-config.json; a failure triggers Duo incident triage
 #
 # The Duo flow (.gitlab/duo/flows/omnis-guardian.yml) is triggered by GitLab when a
 # merge request pipeline fails, and by mentions. It is configured in the GitLab UI.
@@ -52,12 +54,22 @@ default:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - npm ci --no-audit --no-fund
 
+# Scheduled pipelines run only monitor_production (the hourly production check).
+.not_scheduled:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - when: on_success
+
 .main_only:
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # ------------------------------------------------------------------ verify
 config_check:
+  extends: .not_scheduled
   stage: verify
   image: python:3.12-slim
   needs: []
@@ -66,7 +78,7 @@ config_check:
     - python3 guardian/ci/validate_config.py
 
 unit_tests:
-  extends: [.node, .npm_install]
+  extends: [.node, .npm_install, .not_scheduled]
   stage: verify
   needs: []
   script:
@@ -109,6 +121,7 @@ regression_proof:
 
 # ------------------------------------------------------------------ secure
 sast_semgrep:
+  extends: .not_scheduled
   stage: secure
   image: python:3.12-slim
   needs: []
@@ -126,6 +139,8 @@ secret_detection:
   stage: secure
   needs: []
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
   artifacts:
@@ -136,7 +151,7 @@ secret_detection:
       secret_detection: gl-secret-detection-report.json
 
 dependency_scan:
-  extends: .node
+  extends: [.node, .not_scheduled]
   stage: secure
   needs: []
   script:
@@ -147,6 +162,7 @@ dependency_scan:
     paths: [gl-dependency-report.json]
 
 security_gate:
+  extends: .not_scheduled
   image: $NODE_IMAGE
   stage: secure
   needs:
@@ -163,6 +179,7 @@ security_gate:
 # ------------------------------------------------------------------ package
 # Build, attest and (on main) sign in ONE job, so the image cannot change in between.
 build_image:
+  extends: .not_scheduled
   stage: package
   image: docker:27
   services:
@@ -183,6 +200,7 @@ build_image:
 
 # Boot the image that was just built (not the source tree) and run user journeys.
 smoke_image:
+  extends: .not_scheduled
   image: $NODE_IMAGE
   stage: package
   needs: [build_image]
@@ -222,6 +240,8 @@ release_gate:
   stage: release
   needs: [build_image, security_gate, smoke_image, verify_signatures]
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
       allow_failure: false
@@ -270,6 +290,8 @@ deploy_production:
   image: google/cloud-sdk:slim
   needs: [publish_release, build_image]
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $GCP_PROJECT_ID
   interruptible: false
   resource_group: production
@@ -287,7 +309,32 @@ deploy_production:
     expire_in: never
     paths: [deploy-result.json, smoke-candidate.json, smoke-production.json]
 
+# Hourly production check, run by a pipeline schedule on main (CI/CD > Schedules).
+# Monitor: the five live smoke probes. Configure: the live service must serve the last
+# approved digest with the settings in guardian/gcp/runtime-config.json (drift detection).
+# A failure fails the pipeline, which triggers the Duo flow to open an incident issue.
+monitor_production:
+  stage: deploy
+  image: google/cloud-sdk:slim
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $GCP_PROJECT_ID
+  interruptible: false
+  resource_group: production
+  id_tokens:
+    GCP_ID_TOKEN:
+      aud: "https://iam.googleapis.com/${GCP_WIF_PROVIDER}"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq jq nodejs >/dev/null
+  script:
+    - sh guardian/ci/monitor-cloudrun.sh
+  artifacts:
+    when: always
+    expire_in: 1 year
+    paths: [monitor-result.json]
+
 carbon_report:
+  extends: .not_scheduled
   image: $NODE_IMAGE
   stage: deploy
   allow_failure: true

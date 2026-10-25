@@ -30,7 +30,7 @@ teams can check it is safe to ship.
 
 **Before and after (Path B):** upstream Kutt v3.2.6 had three GitHub Actions workflows that build
 and push a Docker image, no tests, no security scanning, and shipped with 3 critical and 5 high npm
-advisories. On GitLab with Omnis Guardian it has a 15-job pipeline, 19 integration and regression
+advisories. On GitLab with Omnis Guardian it has a 16-job pipeline with hourly production monitoring, 19 integration and regression
 tests, three scanners behind a fail-closed gate, a Duo flow that diagnoses and fixes on approval,
 proof that every fix works, signed releases a person approves, and a Cloud Run deploy with candidate
 testing and automatic rollback. The full table is in the README.
@@ -59,7 +59,15 @@ workflow where a person approves every step.
    **Cloud Run**: a no-traffic candidate is smoke-tested, promoted, re-checked, and rolled back
    automatically if production fails. Google Cloud access is keyless (GitLab OIDC → Workload
    Identity Federation, trusted only for this project's protected `main`).
-7. **Show the evidence.** A Pages dashboard shows every stage from live GitLab data and the
+7. **Watch production.** Every hour a scheduled pipeline re-runs the live probes and checks for
+   configuration drift: Cloud Run must serve the last approved digest with exactly the settings in
+   `runtime-config.json`. A failure triggers the same Duo flow, which reads the logs and opens an
+   **incident issue** with a diagnosis and a recommended action. It never touches production; a
+   person acts, and the next hourly check confirms the fix.
+8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, answers "is
+   this safe to ship?" in Duo Chat on any merge request or incident, citing the real gate results,
+   and names the decision that is still the maintainer's.
+9. **Show the evidence.** A Pages dashboard shows every stage from live GitLab data and the
    pipeline's own artifacts, plus a per-pipeline SCI carbon figure. Nothing on it is simulated.
 
 **It caught real problems on day one.** The first pipeline on unmodified upstream Kutt v3.2.6 was
@@ -70,9 +78,10 @@ Bull downgrade, so they stay reported in the pipeline rather than hidden.
 ## How we built it
 
 - **GitLab Duo Agent Platform:** a custom flow (flow registry v1) with a planner and an executor
-  agent, using only GitLab API tools. It is triggered by *Pipeline events → Failed* and *Mention*,
+  agent and four modes (plan, approve, revise, incident triage), plus a read-only custom agent for
+  Duo Chat, all using only GitLab API tools. The flow is triggered by *Pipeline events → Failed* and *Mention*,
   and runs under composite identity. GitLab Duo Code Review reviewed every merge request.
-- **GitLab CI/CD:** 15 jobs across verify, secure, package, release and deploy, running on hosted
+- **GitLab CI/CD:** 16 jobs across verify, secure, package, release and deploy, running on hosted
   runners. Also used: the Secret Detection template, the release keyword, Pages, protected
   variables, `id_tokens` for Sigstore and for Google Cloud, and dotenv artifacts.
 - **Google Cloud:** Cloud Run, Artifact Registry, Secret Manager, and Workload Identity Federation
@@ -81,7 +90,7 @@ Bull downgrade, so they stay reported in the pipeline rather than hidden.
   v1 provenance built from the registry digest, verified again before release.
 - **Kutt:** imported with full upstream history. We added an integration test suite (upstream has
   none), dependency upgrades, and `engines`. Everything else is in `guardian/`.
-- 19 Kutt integration and regression tests, and 38 tests for the Guardian tooling.
+- 19 Kutt integration and regression tests, and 46 tests for the Guardian tooling.
 
 ## Challenges we ran into
 

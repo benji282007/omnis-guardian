@@ -9,8 +9,8 @@ export const STAGES = [
   { key: 'package', label: 'Package', what: 'Container image built and booted', jobs: ['build_image', 'smoke_image'] },
   { key: 'secure', label: 'Secure', what: 'Semgrep, secrets and dependency gate', jobs: ['security_gate'] },
   { key: 'release', label: 'Release', what: 'Approver-checked gate, then GitLab release', jobs: ['release_gate', 'publish_release'] },
-  { key: 'configure', label: 'Configure', what: 'Pipeline and Duo flow config validated', jobs: ['config_check'] },
-  { key: 'monitor', label: 'Monitor', what: 'Cloud Run candidate smoke, promote, auto-rollback', jobs: ['deploy_production'] },
+  { key: 'configure', label: 'Configure', what: 'Runtime config as code, drift-checked hourly; pipeline and flow validated', jobs: ['config_check'], evidence: 'runtime' },
+  { key: 'monitor', label: 'Monitor', what: 'Hourly live probes; canary, promote, auto-rollback on deploy', jobs: ['deploy_production', 'monitor_production'] },
   { key: 'govern', label: 'Govern', what: 'Signatures, provenance and carbon verified', jobs: ['verify_signatures', 'carbon_report'], evidence: 'provenance' }
 ];
 
@@ -51,9 +51,11 @@ function combine(statuses) {
 }
 
 /**
- * @param {{ jobs?: any[], pipeline?: any, guardianMr?: any, evidence?: any }} input
+ * `jobs` may include the latest scheduled monitor_production job alongside the release
+ * pipeline's jobs; `runtime` is that job's monitor-result.json drift checks.
+ * @param {{ jobs?: any[], pipeline?: any, guardianMr?: any, evidence?: any, runtime?: any }} input
  */
-export function mapStages({ jobs = [], pipeline = null, guardianMr = null, evidence = null }) {
+export function mapStages({ jobs = [], pipeline = null, guardianMr = null, evidence = null, runtime = null }) {
   const byName = latestJobs(jobs);
   return STAGES.map((stage) => {
     if (stage.source === 'duo') {
@@ -74,6 +76,11 @@ export function mapStages({ jobs = [], pipeline = null, guardianMr = null, evide
       const signed = evidence.signature?.verified === true;
       detail = `${evidence.provenance?.verified ? 'provenance verified' : 'provenance not verified'} · ${signed ? 'signed' : 'unsigned'}`;
       if (status === 'success' && !evidence.provenance?.verified) status = 'failed';
+    }
+    if (stage.evidence === 'runtime' && runtime?.checks) {
+      const drift = runtime.checks.filter((c) => !c.ok).map((c) => c.name);
+      detail += drift.length ? ` · drift: ${drift.join(', ')}` : ' · live config matches release';
+      if (drift.length) status = 'failed';
     }
     const primary = found.find((j) => j.status !== 'success') ?? found[0];
     return { ...stage, status, tone: toneFor(status), detail, url: primary.web_url ?? null };

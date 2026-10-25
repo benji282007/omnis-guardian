@@ -11,7 +11,8 @@
 # Required CI/CD variables: GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOYER_SA,
 # GCP_RUNTIME_SA, and an id_token GCP_ID_TOKEN with aud https://iam.googleapis.com/$GCP_WIF_PROVIDER
 set -eu
-SERVICE="${CLOUD_RUN_SERVICE:-kutt}"
+RUNTIME_CONFIG="guardian/gcp/runtime-config.json"
+SERVICE="${CLOUD_RUN_SERVICE:-$(jq -r .service "$RUNTIME_CONFIG")}"
 AR_REPO="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/kutt/kutt"
 TAG="c${CI_PIPELINE_IID}"
 SRC_REF="$(jq -r .imageRef dist/image.json)"
@@ -25,12 +26,7 @@ result() { # status detail
 }
 
 # 1. Keyless auth: exchange the GitLab OIDC token for short-lived Google credentials.
-printf '%s' "$GCP_ID_TOKEN" > .gcp-oidc-token
-gcloud iam workload-identity-pools create-cred-config "$GCP_WIF_PROVIDER" \
-  --service-account="$GCP_DEPLOYER_SA" --credential-source-file=.gcp-oidc-token --output-file=.gcp-cred.json
-gcloud auth login --cred-file=.gcp-cred.json --quiet
-gcloud config set project "$GCP_PROJECT_ID" --quiet
-gcloud config set run/region "$GCP_REGION" --quiet
+. guardian/ci/gcp-auth.sh
 
 # 2. Copy by digest (crane keeps the manifest byte-for-byte, so the digest is identical).
 CRANE_VERSION=v0.20.2
@@ -48,10 +44,15 @@ IMAGE="${AR_REPO}@${DIGEST}"
 KUTT_ADMIN_PASSWORD="$(gcloud secrets versions access latest --secret=kutt-admin-password)"
 export KUTT_ADMIN_PASSWORD KUTT_ADMIN_EMAIL="${KUTT_ADMIN_EMAIL:-admin@omnis-guardian.dev}"
 
-COMMON_FLAGS="--image=$IMAGE --service-account=$GCP_RUNTIME_SA --port=3000 --cpu=1 --memory=512Mi \
-  --min-instances=1 --max-instances=1 --allow-unauthenticated \
-  --set-secrets=JWT_SECRET=kutt-jwt-secret:latest \
-  --labels=managed-by=omnis-guardian,commit=${CI_COMMIT_SHORT_SHA}"
+# Runtime settings come from guardian/gcp/runtime-config.json (configuration as code);
+# monitor_production checks the live service against the same file every hour.
+COMMON_FLAGS="$(jq -r --arg image "$IMAGE" --arg sa "$GCP_RUNTIME_SA" --arg commit "$CI_COMMIT_SHORT_SHA" '
+  "--image=\($image) --service-account=\($sa) --port=\(.port) --cpu=\(.cpu) --memory=\(.memory)"
+  + " --min-instances=\(.minInstances) --max-instances=\(.maxInstances)"
+  + (if .allowUnauthenticated then " --allow-unauthenticated" else " --no-allow-unauthenticated" end)
+  + " --set-secrets=" + ([.secrets | to_entries[] | "\(.key)=\(.value)"] | join(","))
+  + " --labels=" + ([.labels | to_entries[] | "\(.key)=\(.value)"] + ["commit=\($commit)"] | join(","))
+' "$RUNTIME_CONFIG")"
 
 if ! gcloud run services describe "$SERVICE" --format='value(status.url)' >/dev/null 2>&1; then
   # First deploy: there is no previous revision to protect, so deploy directly.

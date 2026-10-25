@@ -87,3 +87,22 @@ test('latestJobs and formatAgo', () => {
   assert.equal(formatAgo('2026-10-25T11:58:00Z', now), '2m ago');
   assert.equal(formatAgo(null, now), '—');
 });
+
+test('monitor combines the deploy with the latest hourly live check', () => {
+  const jobs = [job(1, 'deploy_production', 'success'), job(2, 'monitor_production', 'failed')];
+  const monitor = mapStages({ jobs, pipeline: {} }).find((s) => s.key === 'monitor');
+  assert.equal(monitor.status, 'failed');
+  assert.match(monitor.detail, /monitor_production: failed/);
+});
+
+test('configure shows live drift from the monitor result', () => {
+  const jobs = [job(1, 'config_check', 'success')];
+  const configure = (runtime) => mapStages({ jobs, pipeline: {}, runtime }).find((s) => s.key === 'configure');
+  assert.equal(configure(null).status, 'success');
+  const clean = configure({ checks: [{ name: 'cpu', ok: true }] });
+  assert.equal(clean.status, 'success');
+  assert.match(clean.detail, /live config matches release/);
+  const drifted = configure({ checks: [{ name: 'max instances', ok: false }, { name: 'cpu', ok: true }] });
+  assert.equal(drifted.status, 'failed');
+  assert.match(drifted.detail, /drift: max instances/);
+});

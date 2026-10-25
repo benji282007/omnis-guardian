@@ -13,6 +13,8 @@ DevSecOps workflow built on GitLab Duo Agent Platform and GitLab CI/CD.
 | `test/regression/` | Regression tests added with fixes. |
 | `guardian/` | Omnis Guardian tooling: CI scripts, Semgrep rules, dashboard, GCP setup. |
 | `.gitlab/duo/flows/` | The Duo flow definition. |
+| `.gitlab/duo/agents/` | The read-only Release Assistant custom agent (Duo Chat). |
+| `guardian/gcp/runtime-config.json` | Cloud Run runtime settings; deploys apply it, the hourly monitor checks for drift. |
 
 ## Commands
 

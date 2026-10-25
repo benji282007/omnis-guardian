@@ -49,7 +49,8 @@ function api(config, path) {
 }
 
 async function loadLive(config) {
-  const pipelines = await getJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&per_page=8&order_by=id&sort=desc`));
+  // Release pipelines only: hourly scheduled monitor runs are shown in Monitor/Configure, not here.
+  const pipelines = await getJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=push&per_page=8&order_by=id&sort=desc`));
   const latest = pipelines[0] ?? null;
   const jobs = latest ? await getJson(api(config, `/pipelines/${latest.id}/jobs?per_page=100&include_retried=true`)) : [];
 
@@ -65,7 +66,10 @@ async function loadLive(config) {
   );
   const releases = (await tryJson(api(config, '/releases?per_page=5'))) ?? [];
   const deploy = await tryJson(api(config, `/jobs/artifacts/${encodeURIComponent(config.defaultBranch)}/raw/deploy-result.json?job=deploy_production`));
-  return { pipelines, latest, jobs, guardian, releases, deploy };
+  const monitorPipeline = ((await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&per_page=1&order_by=id&sort=desc`))) ?? [])[0] ?? null;
+  const monitorJobs = monitorPipeline ? ((await tryJson(api(config, `/pipelines/${monitorPipeline.id}/jobs?per_page=20`))) ?? []).filter((j) => j.name === 'monitor_production') : [];
+  const monitor = monitorJobs[0] ? await tryJson(api(config, `/jobs/${monitorJobs[0].id}/artifacts/monitor-result.json`)) : null;
+  return { pipelines, latest, jobs, guardian, releases, deploy, monitorPipeline, monitorJobs, monitor };
 }
 
 /* ---------------------------------------------------------------- render */
@@ -126,7 +130,13 @@ function renderGate(config, live, evidence) {
 function renderStages(live, evidence) {
   const newest = live?.guardian?.[0]?.mr ?? null;
   const ev = evidence ? { provenance: evidence.provenance, signature: evidence.signature } : null;
-  const stages = mapStages({ jobs: live?.jobs ?? [], pipeline: live?.latest ?? null, guardianMr: newest, evidence: ev });
+  const stages = mapStages({
+    jobs: [...(live?.jobs ?? []), ...(live?.monitorJobs ?? [])],
+    pipeline: live?.latest ?? null,
+    guardianMr: newest,
+    evidence: ev,
+    runtime: live?.monitor?.runtime ?? null
+  });
   $('stages').replaceChildren(
     ...stages.map((s, i) =>
       h('li', { class: 'stage', dataset: { tone: s.tone } },
@@ -141,7 +151,10 @@ function renderStages(live, evidence) {
   const p = live?.latest;
   $('lifecycle-meta').replaceChildren(
     p ? link(p.web_url, `Pipeline #${p.iid ?? p.id} · ${shortSha(p.sha)} · ${p.status} · ${formatAgo(p.created_at)}`) : document.createTextNode('No live pipeline data'),
-    newest ? document.createTextNode(' · Duo stages from the newest guardian MR') : ''
+    newest ? document.createTextNode(' · Duo stages from the newest guardian MR') : '',
+    live?.monitorPipeline
+      ? h('span', {}, ' · ', link(live.monitorPipeline.web_url, `live check ${live.monitorPipeline.status} ${formatAgo(live.monitorPipeline.created_at)}`))
+      : ''
   );
 }
 

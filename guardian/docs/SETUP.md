@@ -60,8 +60,29 @@ The Kutt admin password for the live instance:
    flow YAML (top of the `planner` component), then save the flow again.
 3. **AI → Triggers → New flow trigger**: add condition **Pipeline events → Failed**, then
    add condition **Mention**; pick the service account; source = this flow; **Create**.
+   The same trigger covers the hourly monitor: a failed scheduled pipeline reaches the flow,
+   which opens an incident issue (mode D).
+4. Create the labels `incident` and `omnis-guardian` (**Manage → Labels**) so incident issues
+   are labelled.
 
-## 5. Run the demo
+## 5. Hourly production monitor
+
+**Build → Pipeline schedules → New schedule**: description `Omnis Guardian production monitor`,
+interval `0 * * * *` (hourly), target branch `main`, active. Each run executes only
+`monitor_production`: live probes, plus drift checks that the service serves the last approved
+digest with the settings in `guardian/gcp/runtime-config.json`. Press **Run** once to see it
+pass. To intentionally change a runtime setting, edit `runtime-config.json` in a merge request;
+the next release applies it.
+
+## 6. Release Assistant agent (Duo Chat)
+
+**AI → Agents → New agent.** Copy `name`, `description` and `system_prompt` from
+`.gitlab/duo/agents/release-assistant.yml`, select exactly the tools it lists (all read-only),
+visibility **Public**, **Create**, then **Enable** it for this project. Open any merge request or
+incident issue, **Add new chat** in the Duo sidebar, pick the agent and ask
+"Is this safe to ship?".
+
+## 7. Run the demo
 
 ```bash
 sh guardian/demo/start-incident.sh
