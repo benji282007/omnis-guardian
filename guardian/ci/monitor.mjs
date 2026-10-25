@@ -20,6 +20,14 @@ import { runSmoke } from './smoke.mjs';
 
 const digestOf = (image) => (typeof image === 'string' && image.includes('@') ? image.slice(image.indexOf('@') + 1) : null);
 
+// Kubernetes resource quantities have several spellings for one value ("1", "1000m", "1.0" CPU;
+// "512Mi", "0.5Gi", "536870912" memory). Compare them as numbers, never as strings.
+const SUFFIX = { m: 1e-3, k: 1e3, M: 1e6, G: 1e9, T: 1e12, Ki: 2 ** 10, Mi: 2 ** 20, Gi: 2 ** 30, Ti: 2 ** 40 };
+export function quantity(q) {
+  const m = /^\s*([0-9]*\.?[0-9]+)\s*(m|k|M|G|T|Ki|Mi|Gi|Ti)?\s*$/.exec(String(q ?? ''));
+  return m ? Number(m[1]) * (m[2] ? SUFFIX[m[2]] : 1) : null;
+}
+
 /**
  * Compare the live Cloud Run service and revision (Knative v1 JSON from
  * `gcloud run services/revisions describe --format=json`) with what was released and declared.
@@ -27,8 +35,9 @@ const digestOf = (image) => (typeof image === 'string' && image.includes('@') ? 
  */
 export function checkRuntime({ service, revision, deploy, config }) {
   const checks = [];
-  const add = (name, expected, actual) =>
-    checks.push({ name, ok: String(expected) === String(actual), expected: String(expected), actual: actual == null ? 'missing' : String(actual) });
+  const add = (name, expected, actual, same = (a, b) => String(a) === String(b)) =>
+    checks.push({ name, ok: actual != null && same(expected, actual), expected: String(expected), actual: actual == null ? 'missing' : String(actual) });
+  const sameQuantity = (a, b) => quantity(a) !== null && Math.abs(quantity(a) - quantity(b)) < 1e-9 * Math.max(1, quantity(a));
 
   const traffic = (service?.status?.traffic ?? []).filter((t) => (t.percent ?? 0) > 0);
   const serving = traffic.length === 1 && traffic[0].percent === 100 ? traffic[0].revisionName : null;
@@ -40,8 +49,8 @@ export function checkRuntime({ service, revision, deploy, config }) {
 
   const ann = revision?.metadata?.annotations ?? {};
   add('container port', config.port, container.ports?.[0]?.containerPort);
-  add('cpu', config.cpu, container.resources?.limits?.cpu);
-  add('memory', config.memory, container.resources?.limits?.memory);
+  add('cpu', config.cpu, container.resources?.limits?.cpu, sameQuantity);
+  add('memory', config.memory, container.resources?.limits?.memory, sameQuantity);
   add('min instances', config.minInstances, ann['autoscaling.knative.dev/minScale']);
   add('max instances', config.maxInstances, ann['autoscaling.knative.dev/maxScale']);
   for (const [name, ref] of Object.entries(config.secrets ?? {})) {

@@ -1,14 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { checkRuntime } from '../ci/monitor.mjs';
+import { checkRuntime, quantity } from '../ci/monitor.mjs';
 
 const config = JSON.parse(readFileSync(new URL('../gcp/runtime-config.json', import.meta.url), 'utf8'));
 const DIGEST = 'sha256:c3f300be54f91cfe4ae5e3d92760c197233d54bfdbd9e3b786d30b9249213a66';
 const deploy = { image: `us-central1-docker.pkg.dev/p/kutt/kutt@${DIGEST}` };
 
 // Shapes follow `gcloud run services/revisions describe --format=json` (Knative serving v1).
-function live({ digest = DIGEST, maxScale = '1', memory = '512Mi', traffic, labels } = {}) {
+// cpu defaults to the millicore spelling Cloud Run may report for --cpu=1.
+function live({ digest = DIGEST, maxScale = '1', cpu = '1000m', memory = '512Mi', traffic, labels } = {}) {
   return {
     service: {
       metadata: { labels: labels ?? { 'managed-by': 'omnis-guardian', commit: '3761a1c4' } },
@@ -24,7 +25,7 @@ function live({ digest = DIGEST, maxScale = '1', memory = '512Mi', traffic, labe
           {
             image: `us-central1-docker.pkg.dev/p/kutt/kutt@${digest}`,
             ports: [{ containerPort: 3000 }],
-            resources: { limits: { cpu: '1', memory } },
+            resources: { limits: { cpu, memory } },
             env: [{ name: 'JWT_SECRET', valueFrom: { secretKeyRef: { name: 'kutt-jwt-secret', key: 'latest' } } }]
           }
         ]
@@ -75,4 +76,24 @@ test('missing settings count as drift, never as a pass', () => {
 test('a removed label is reported', () => {
   const r = checkRuntime({ ...live({ labels: {} }), deploy, config });
   assert.deepEqual(failed(r), ['label managed-by']);
+});
+
+test('resource quantities compare by value, whatever the spelling', () => {
+  assert.equal(quantity('1'), 1);
+  assert.equal(quantity('1000m'), 1);
+  assert.equal(quantity('0.5'), 0.5);
+  assert.equal(quantity('512Mi'), 512 * 2 ** 20);
+  assert.equal(quantity('0.5Gi'), 512 * 2 ** 20);
+  assert.equal(quantity('lots'), null);
+  for (const cpu of ['1', '1000m', '1.0']) {
+    assert.deepEqual(failed(checkRuntime({ ...live({ cpu }), deploy, config })), [], `cpu ${cpu}`);
+  }
+  assert.deepEqual(failed(checkRuntime({ ...live({ memory: '0.5Gi' }), deploy, config })), []);
+});
+
+test('a real CPU or memory change is still drift', () => {
+  assert.deepEqual(failed(checkRuntime({ ...live({ cpu: '2' }), deploy, config })), ['cpu']);
+  assert.deepEqual(failed(checkRuntime({ ...live({ cpu: '500m' }), deploy, config })), ['cpu']);
+  assert.deepEqual(failed(checkRuntime({ ...live({ memory: '256Mi' }), deploy, config })), ['memory']);
+  assert.deepEqual(failed(checkRuntime({ ...live({ memory: 'garbage' }), deploy, config })), ['memory']);
 });
