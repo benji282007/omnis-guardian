@@ -133,3 +133,15 @@ test('summariseTap counts outcomes', () => {
   const tap = "ok 1 - a\nnot ok 2 - b\n  failureType: 'testCodeFailure'\n";
   assert.deepEqual(summariseTap(tap), { ok: 1, notOk: 1, assertionFailures: 1, loadErrors: 0 });
 });
+
+test('outside fix branches the check is informational and never blocks', () => {
+  const head = { exitCode: 0, ok: 1, notOk: 0 };
+  const base = { exitCode: 0, assertionFailures: 0, loadErrors: 0 };
+  const v = decide({ sourceChanged: true, testFiles: ['app/test/x.test.js'], requireTest: false, head, base });
+  assert.equal(v.proven, true);
+  assert.equal(v.verdict, 'informational');
+  assert.match(v.reason, /also pass on the old code/);
+  const strict = decide({ sourceChanged: true, testFiles: ['app/test/x.test.js'], requireTest: true, head, base });
+  assert.equal(strict.verdict, 'failed');
+  assert.equal(strict.enforced, true);
+});
