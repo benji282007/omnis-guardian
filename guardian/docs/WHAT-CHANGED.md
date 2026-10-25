@@ -8,7 +8,7 @@ new work done for the hackathon, after 5 October 2026.
 
 | Area | Files |
 |---|---|
-| Duo Agent Platform flow (assisted plan → approve → fix) | `.gitlab/duo/flows/omnis-guardian.yml`, `AGENTS.md` |
+| Duo Agent Platform flow (assisted plan → approve → fix → revise) | `.gitlab/duo/flows/omnis-guardian.yml`, `AGENTS.md` |
 | CI/CD pipeline (verify, secure, package, release, deploy) | `.gitlab-ci.yml` |
 | Integration test suite (upstream Kutt has none) | `test/`, `test/helpers/kutt.js` |
 | Security gate, Knex-aware Semgrep rules, npm audit report | `guardian/ci/security-gate.mjs`, `guardian/semgrep/rules.yml`, `guardian/ci/dependency-report.mjs` |
@@ -23,11 +23,12 @@ new work done for the hackathon, after 5 October 2026.
 ## Changed in Kutt itself
 
 - `package.json`: added `test` and `test:guardian` scripts.
-- On branch `guardian/dependency-upgrades`: `hbs` 4.2.1→4.4.0, `express` 4.22.2→4.22.3,
+- Via [MR !1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/1): `hbs` 4.2.1→4.4.0, `express` 4.22.2→4.22.3,
   `mysql2` 3.12.0→3.24.6, `nanoid` 3.3.8→3.3.20, `nodemailer` 9.0.3→10.2.1, plus lockfile
   updates, clearing all critical and high npm advisories. Kutt's application code is otherwise unchanged.
 
 ## Deployment
 
 Kutt runs on **Google Cloud Run** (deployed by `deploy_production` after each approved
-release). Live URL: *add after first deploy*.
+release). Live URL: https://kutt-bda5naktma-uc.a.run.app (first deployed 24 Oct 2026 by
+[pipeline #19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2984791302)).
