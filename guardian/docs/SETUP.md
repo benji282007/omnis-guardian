@@ -7,21 +7,28 @@ project, and a Google Cloud project with billing.
 ## 1. Push the project
 
 1. Create a new **public** project in that namespace (no README).
-2. From the folder you got from Claude:
+2. Clone this repository and point it at your new project:
    ```bash
-   git clone omnis-guardian-kutt.bundle omnis-guardian && cd omnis-guardian
-   git remote remove origin 2>/dev/null; git remote add origin https://gitlab.com/<namespace>/<project>.git
-   git push -u origin main
+   git clone https://gitlab.com/omnis-guardian1/omnis-guardian.git && cd omnis-guardian
+   git remote set-url origin https://gitlab.com/<namespace>/<project>.git
    ```
    Sign in normally when git asks. Don't put a token in the URL.
-3. The first pipeline runs on upstream Kutt's dependencies and **should be blocked by
-   `security_gate`** (3 critical, 5 high npm advisories). That is real, expected, and the
-   first piece of evidence. Then push the fix branch and open its MR:
+3. **To replay day one** (recommended for a demo), push the commit that added Omnis Guardian to
+   upstream Kutt, before its dependencies were upgraded. Its pipeline **should be blocked by
+   `security_gate`** (3 critical, 5 high npm advisories):
    ```bash
-   git push -u origin guardian/dependency-upgrades -o merge_request.create -o merge_request.target=main \
-     -o merge_request.title="Upgrade dependencies flagged by the Guardian dependency gate"
+   git push origin 6c85761:refs/heads/main
    ```
-   Merge it once its pipeline passes.
+   Then push the upgrade commit from MR !1 as a branch, open its MR, and merge it once its
+   pipeline passes:
+   ```bash
+   git push origin 0802291:refs/heads/guardian/dependency-upgrades -o merge_request.create \
+     -o merge_request.target=main -o merge_request.title="Upgrade dependencies flagged by the Guardian dependency gate"
+   ```
+   Bring in everything after it through one more MR: `git push origin main:refs/heads/guardian/catch-up -o merge_request.create -o merge_request.target=main`.
+
+   **To skip the replay**, push today's main directly (`git push -u origin main`); its
+   dependencies are already upgraded, so the first pipeline passes `security_gate`.
 
 ## 2. CI/CD variables
 

@@ -65,7 +65,17 @@ async function loadLive(config) {
     })
   );
   const releases = (await tryJson(api(config, '/releases?per_page=5'))) ?? [];
-  const deploy = await tryJson(api(config, `/jobs/artifacts/${encodeURIComponent(config.defaultBranch)}/raw/deploy-result.json?job=deploy_production`));
+  // The newest successful deploy, read by job id: "latest artifact on main" would resolve to an
+  // hourly monitor pipeline, which has no deploy job.
+  let deploy = null;
+  for (const p of pipelines) {
+    const pJobs = p.id === latest?.id ? jobs : (await tryJson(api(config, `/pipelines/${p.id}/jobs?per_page=100`))) ?? [];
+    const job = pJobs.filter((j) => j.name === 'deploy_production' && j.status === 'success').sort((a, b) => b.id - a.id)[0];
+    if (job) {
+      deploy = await tryJson(api(config, `/jobs/${job.id}/artifacts/deploy-result.json`));
+      break;
+    }
+  }
   const monitorPipeline = ((await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&per_page=1&order_by=id&sort=desc`))) ?? [])[0] ?? null;
   const monitorJobs = monitorPipeline ? ((await tryJson(api(config, `/pipelines/${monitorPipeline.id}/jobs?per_page=20`))) ?? []).filter((j) => j.name === 'monitor_production') : [];
   const monitor = monitorJobs[0] ? await tryJson(api(config, `/jobs/${monitorJobs[0].id}/artifacts/monitor-result.json`)) : null;

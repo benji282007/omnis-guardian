@@ -42,7 +42,7 @@ if (existsSync('dist/provenance.intoto.json')) {
     builder: stmt.predicate?.runDetails?.builder?.id ?? null,
     invocation: stmt.predicate?.runDetails?.metadata?.invocationId ?? null,
     predicateType: stmt.predicateType,
-    statementUrl: env.CI_PROJECT_URL ? `${env.CI_PROJECT_URL}/-/jobs/artifacts/${env.CI_COMMIT_REF_NAME}/raw/dist/provenance.intoto.json?job=build_image` : null
+    statementUrl: env.CI_PROJECT_URL && env.BUILD_JOB_ID ? `${env.CI_PROJECT_URL}/-/jobs/${env.BUILD_JOB_ID}/artifacts/raw/dist/provenance.intoto.json` : null
   };
 } else {
   missing.push('dist/provenance.intoto.json');

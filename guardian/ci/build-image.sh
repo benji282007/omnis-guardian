@@ -28,6 +28,7 @@ cat > dist/image.json <<EOF
 {"imageRef": "$IMAGE_REF", "tag": "$TAG", "baseImageRef": "$BASE_REF", "commit": "$CI_COMMIT_SHA", "dockerfile": "Dockerfile", "sizeBytes": $SIZE}
 EOF
 echo "IMAGE_REF=$IMAGE_REF" > image.env
+echo "BUILD_JOB_ID=$CI_JOB_ID" >> image.env  # artifact links by job id, not "latest on main"
 echo "Built and pushed $IMAGE_REF"
 
 node guardian/ci/provenance.mjs --image-info dist/image.json --out dist/provenance.intoto.json

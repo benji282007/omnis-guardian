@@ -251,10 +251,13 @@ release_gate:
     action: prepare
   script:
     - node guardian/ci/release-gate.mjs
+    - echo "RELEASE_GATE_JOB_ID=$CI_JOB_ID" > gate.env
   artifacts:
     when: always
     expire_in: never
     paths: [release-evidence.json]
+    reports:
+      dotenv: gate.env
 
 publish_release:
   stage: release
@@ -262,27 +265,29 @@ publish_release:
   needs: [release_gate, build_image]
   extends: .main_only
   interruptible: false
+  # Notes are written here, not in release:description, because GitLab expands that field
+  # before dotenv variables (IMAGE_REF, job ids) exist, and its shell would run backticks.
+  # Links point at artifacts by job id: "latest artifact on main" would resolve to an hourly
+  # monitor pipeline once one has passed.
   script:
     - echo "Releasing Kutt image ${IMAGE_REF}"
+    - |
+      {
+        printf 'Approved through the Omnis Guardian release gate.\n\n'
+        printf -- '- Image: %s\n' "$IMAGE_REF"
+        printf -- '- Commit: %s\n' "$CI_COMMIT_SHA"
+        printf -- '- Pipeline: %s\n' "$CI_PIPELINE_URL"
+        printf -- '- Signed and attested with Sigstore keyless signing. Verify with %s and %s.\n' \
+          "cosign verify" "cosign verify-attestation --type slsaprovenance1"
+        printf -- '- SLSA provenance (in-toto v1): %s/-/jobs/%s/artifacts/raw/dist/provenance.intoto.json\n' "$CI_PROJECT_URL" "$BUILD_JOB_ID"
+        printf -- '- Release evidence (who approved, what was checked): %s/-/jobs/%s/artifacts/raw/release-evidence.json\n' "$CI_PROJECT_URL" "$RELEASE_GATE_JOB_ID"
+      } > release-notes.md
+    - cat release-notes.md
   release:
     tag_name: "guardian-${CI_PIPELINE_IID}"
     name: "Kutt + Omnis Guardian, pipeline ${CI_PIPELINE_IID}"
     ref: "$CI_COMMIT_SHA"
-    description: |
-      Approved through the Omnis Guardian release gate.
-
-      - Image: `${IMAGE_REF}`
-      - Commit: ${CI_COMMIT_SHA}
-      - Pipeline: ${CI_PIPELINE_URL}
-      - Signed and attested with Sigstore keyless signing (verify with `cosign verify` / `cosign verify-attestation --type slsaprovenance1`).
-    assets:
-      links:
-        - name: "SLSA provenance (in-toto v1)"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_REF_NAME}/raw/dist/provenance.intoto.json?job=build_image"
-          link_type: other
-        - name: "Release evidence"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_REF_NAME}/raw/release-evidence.json?job=release_gate"
-          link_type: other
+    description: "./release-notes.md"
 
 # ------------------------------------------------------------------ deploy
 deploy_production:

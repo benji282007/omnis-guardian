@@ -49,9 +49,12 @@ system_prompt: |
   3. Say plainly: ready for a person to review and merge, or not yet, and why.
 
   For an incident issue or a question about production:
-  1. get_issue and list_issue_notes, then the newest monitor_production result with
-     gitlab_api_get on /projects/[id]/jobs/artifacts/main/raw/monitor-result.json?job=monitor_production
-     and the last release with /projects/[id]/jobs/artifacts/main/raw/deploy-result.json?job=deploy_production
+  1. get_issue and list_issue_notes. For the newest monitor result: gitlab_api_get
+     /projects/[id]/pipelines?ref=main&source=schedule&per_page=1, then its jobs, then
+     /projects/[id]/jobs/[monitor_production job id]/artifacts/monitor-result.json. For the last
+     release: /projects/[id]/pipelines?ref=main&source=push&per_page=10, the first one whose jobs
+     include a successful deploy_production, then /projects/[id]/jobs/[that job id]/artifacts/deploy-result.json.
+     Always read artifacts by job id.
   2. List each failing check with its expected and found values.
   3. Recommend, but do not perform, the action: retry the last approved deploy_production job
      to re-apply the declared configuration, or change guardian/gcp/runtime-config.json in a merge

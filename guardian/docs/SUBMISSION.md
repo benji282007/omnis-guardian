@@ -30,7 +30,7 @@ teams can check it is safe to ship.
 
 **Before and after (Path B):** upstream Kutt v3.2.6 had three GitHub Actions workflows that build
 and push a Docker image, no tests, no security scanning, and shipped with 3 critical and 5 high npm
-advisories. On GitLab with Omnis Guardian it has a 16-job pipeline with hourly production monitoring, 19 integration and regression
+advisories. On GitLab with Omnis Guardian it has 16 CI jobs across merge request, release and hourly monitor pipelines, 19 integration and regression
 tests, three scanners behind a fail-closed gate, a Duo flow that diagnoses and fixes on approval,
 proof that every fix works, signed releases a person approves, and a Cloud Run deploy with candidate
 testing and automatic rollback. The full table is in the README.
@@ -90,7 +90,7 @@ Bull downgrade, so they stay reported in the pipeline rather than hidden.
   v1 provenance built from the registry digest, verified again before release.
 - **Kutt:** imported with full upstream history. We added an integration test suite (upstream has
   none), dependency upgrades, and `engines`. Everything else is in `guardian/`.
-- 19 Kutt integration and regression tests, and 48 tests for the Guardian tooling.
+- 19 Kutt integration and regression tests, and 50 tests for the Guardian tooling.
 
 ## Challenges we ran into
 
@@ -116,7 +116,7 @@ Bull downgrade, so they stay reported in the pipeline rather than hidden.
 ## Accomplishments we're proud of
 
 - A complete loop on a real, popular app: detect → plan → approve → fix → prove → release → deploy.
-- Every claim on the dashboard and in this text links to a real pipeline, merge request or log.
+- Every result on the dashboard and in the README links to a real pipeline, merge request, job or release.
 - Keyless end to end: no stored cloud keys, no signing keys.
 
 ## What we learned
