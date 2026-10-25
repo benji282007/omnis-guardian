@@ -107,9 +107,12 @@ prompts:
           guardian/gcp/runtime-config.json (each line shows expected and found). Lines starting with
           "FAIL" are live probes that failed. If the log shows neither (for example an
           authentication or network error before the checks ran), treat it as a tooling failure.
-        - Read guardian/gcp/runtime-config.json with get_repository_file, and the latest
-          deploy_production result with gitlab_api_get on
-          /projects/{project_id}/jobs/artifacts/main/raw/deploy-result.json?job=deploy_production
+        - Read guardian/gcp/runtime-config.json with get_repository_file. Find the last approved
+          deploy: gitlab_api_get /projects/{project_id}/pipelines?ref=main&source=push&per_page=10,
+          then /projects/{project_id}/pipelines/[pipeline id]/jobs for each until one has a
+          deploy_production job with status success, then read
+          /projects/{project_id}/jobs/[that job id]/artifacts/deploy-result.json
+          (do not use the jobs/artifacts/main URL: it resolves to the scheduled pipeline itself).
         - gitlab_issue_search for open issues whose title starts with "Omnis Guardian incident". If one
           is open, add ONE note to it (create_issue_note) with this run's pipeline id and the failing
           lines, then answer "INCIDENT_UPDATED: #[issue iid]". Do not open a second issue.

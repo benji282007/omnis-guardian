@@ -7,10 +7,10 @@ project, and a Google Cloud project with billing.
 ## 1. Push the project
 
 1. Create a new **public** project in that namespace (no README).
-2. From the folder you got from Claude:
+2. Clone this repository and push it to your new project:
    ```bash
-   git clone omnis-guardian-kutt.bundle omnis-guardian && cd omnis-guardian
-   git remote remove origin 2>/dev/null; git remote add origin https://gitlab.com/<namespace>/<project>.git
+   git clone https://gitlab.com/omnis-guardian1/omnis-guardian.git && cd omnis-guardian
+   git remote set-url origin https://gitlab.com/<namespace>/<project>.git
    git push -u origin main
    ```
    Sign in normally when git asks. Don't put a token in the URL.

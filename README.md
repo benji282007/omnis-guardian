@@ -34,7 +34,7 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 
 | | Upstream Kutt v3.2.6 (before) | With Omnis Guardian on GitLab (after) |
 |---|---|---|
-| CI | 3 GitHub Actions workflows that build and push a Docker image | 16-job GitLab pipeline across verify, secure, package, release and deploy, plus an hourly production monitor |
+| CI | 3 GitHub Actions workflows that build and push a Docker image | 16 GitLab CI jobs across merge request, release and hourly monitor pipelines (verify, secure, package, release, deploy, monitor) |
 | Tests | None | 19 integration and regression tests that boot a real Kutt |
 | Security | No scanning; v3.2.6 shipped with **3 critical and 5 high** npm advisories | Semgrep (Knex-aware rules), Secret Detection and npm audit, behind a fail-closed `security_gate` |
 | When a check fails | A maintainer investigates alone | A Duo flow diagnoses, proposes a plan and waits; on approval it opens a fix MR with a regression test |
@@ -63,13 +63,15 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 
 - **Kutt on Google Cloud Run:** https://kutt-bda5naktma-uc.a.run.app (deployed by `deploy_production` after an approved release)
 - **Evidence dashboard (GitLab Pages):** https://omnis-guardian-af8ca1.gitlab.io
-- **Current release:** [guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64), signed image + SLSA provenance, approved through `release_gate`
-  and deployed as a no-traffic candidate, smoke-tested, then promoted ([pipeline #64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986094858))
-- **First release:** [guardian-19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-19)
+- **Releases:** [all releases](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases), each signed with SLSA provenance and approved through `release_gate`.
+  [guardian-19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-19) was the first deploy; [guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64)
+  was the first no-traffic candidate, smoke test and promotion ([pipeline #64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986094858)).
 
 ## What happened, with links
 
-Everything below is a real run in this project. Nothing is staged in a script.
+Everything below is a real run in this project. One input was seeded on purpose: the risky feature in
+step 5 comes from [`guardian/demo/start-incident.sh`](guardian/demo/start-incident.sh), so the demo has a known
+bug to find. Everything that happened after it was pushed (scanner, Duo, CI, review, release) is unscripted.
 
 1. **Day one: upstream Kutt blocked.** The first pipeline on unmodified Kutt v3.2.6 failed
    `security_gate` with **3 critical and 5 high** npm advisories
@@ -84,12 +86,13 @@ Everything below is a real run in this project. Nothing is staged in a script.
 4. **Approved release, signed and deployed.** In [pipeline #19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2984791302) a person
    started `release_gate` (recorded approver: `fl4sh28`); the image was copied by digest to Artifact
    Registry and deployed to Cloud Run, where all 5 production smoke checks passed.
-5. **A risky feature arrives.** [MR !4](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4) adds `?sort=column:direction` using
+5. **A risky feature arrives (seeded demo).** [MR !4](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4) adds `?sort=column:direction` using
    `orderByRaw` with interpolated input. Its tests pass; `security_gate` blocks it
    ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830)).
 6. **Duo diagnoses and waits.** The failed pipeline triggered the Omnis Guardian flow, which posted a
    diagnosis and fix plan on MR !4 and did nothing further until a maintainer replied `approve`.
-7. **Duo fixes, CI judges.** The flow opened [MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6): an allow-list with
+7. **Duo fixes, CI judges.** The flow opened [MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6) (GitLab lists the approving maintainer
+   as author because flows run under composite identity; the commits are by the Omnis Guardian service account): an allow-list with
    Knex `orderBy` (the injection finding is gone) plus a regression test. CI then **rejected Duo's
    test**: it sorted Kutt's UUID link ids numerically, so it failed on its own fix
    ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985049272)). An agent's work only counts once CI proves it.
@@ -123,6 +126,9 @@ Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipeli
 
 ## Limitations
 
+- Single-maintainer project: the release gate's four-eyes rule (approver must not be the commit
+  author) is supported but switched off with `RELEASE_REQUIRE_FOUR_EYES=false`, and every release
+  records that in `release-evidence.json`. A team would turn it on.
 - The flow's token may not read project membership (HTTP 403 `insufficient_scope`). In that one
   case it relies on GitLab's composite identity, which blocks branch and commit creation for anyone
   below Developer; a 404, a low access level or any other error refuses.
