@@ -45,7 +45,7 @@ KUTT_ADMIN_PASSWORD="$(gcloud secrets versions access latest --secret=kutt-admin
 export KUTT_ADMIN_PASSWORD KUTT_ADMIN_EMAIL="${KUTT_ADMIN_EMAIL:-admin@omnis-guardian.dev}"
 
 # Runtime settings come from guardian/gcp/runtime-config.json (configuration as code);
-# monitor_production checks the live service against the same file every hour.
+# monitor_production checks the live service against the same file every two hours.
 COMMON_FLAGS="$(jq -r --arg image "$IMAGE" --arg sa "$GCP_RUNTIME_SA" --arg commit "$CI_COMMIT_SHORT_SHA" '
   "--image=\($image) --service-account=\($sa) --port=\(.port) --cpu=\(.cpu) --memory=\(.memory)"
   + " --min-instances=\(.minInstances) --max-instances=\(.maxInstances)"

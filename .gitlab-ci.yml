@@ -6,7 +6,7 @@
 # release  verify_signatures → release_gate (manual: the approval) → publish_release
 # deploy   deploy_production (Cloud Run: candidate → smoke → promote → verify → auto-rollback)
 #          carbon_report · pages (evidence dashboard)
-# hourly   monitor_production (schedule only): live probes + drift against the release
+# schedule monitor_production (schedule only): live probes + drift against the release
 #          and guardian/gcp/runtime-config.json; a failure triggers Duo incident triage
 #
 # The Duo flow (.gitlab/duo/flows/omnis-guardian.yml) is triggered by GitLab when a
@@ -54,7 +54,7 @@ default:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - npm ci --no-audit --no-fund
 
-# Scheduled pipelines run only monitor_production (the hourly production check).
+# Scheduled pipelines run only monitor_production (the scheduled production check).
 .not_scheduled:
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
@@ -267,7 +267,7 @@ publish_release:
   interruptible: false
   # Notes are written here, not in release:description, because GitLab expands that field
   # before dotenv variables (IMAGE_REF, job ids) exist, and its shell would run backticks.
-  # Links point at artifacts by job id: "latest artifact on main" would resolve to an hourly
+  # Links point at artifacts by job id: "latest artifact on main" would resolve to a scheduled
   # monitor pipeline once one has passed.
   script:
     - echo "Releasing Kutt image ${IMAGE_REF}"
@@ -314,7 +314,7 @@ deploy_production:
     expire_in: never
     paths: [deploy-result.json, smoke-candidate.json, smoke-production.json]
 
-# Hourly production check, run by a pipeline schedule on main (CI/CD > Schedules).
+# Scheduled production check (every two hours), run by a pipeline schedule on main (CI/CD > Schedules).
 # Monitor: the five live smoke probes. Configure: the live service must serve the last
 # approved digest with the settings in guardian/gcp/runtime-config.json (drift detection).
 # A failure fails the pipeline, which triggers the Duo flow to open an incident issue.

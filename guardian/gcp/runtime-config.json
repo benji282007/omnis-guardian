@@ -1,5 +1,5 @@
 {
-  "$comment": "Cloud Run runtime configuration for Kutt, as code. deploy-cloudrun.sh applies it and monitor_production checks the live service against it every hour (drift detection).",
+  "$comment": "Cloud Run runtime configuration for Kutt, as code. deploy-cloudrun.sh applies it and monitor_production checks the live service against it every two hours (drift detection).",
   "service": "kutt",
   "port": 3000,
   "cpu": "1",

@@ -67,15 +67,15 @@ The Kutt admin password for the live instance:
    flow YAML (top of the `planner` component), then save the flow again.
 3. **AI → Triggers → New flow trigger**: add condition **Pipeline events → Failed**, then
    add condition **Mention**; pick the service account; source = this flow; **Create**.
-   The same trigger covers the hourly monitor: a failed scheduled pipeline reaches the flow,
+   The same trigger covers the scheduled monitor: a failed scheduled pipeline reaches the flow,
    which opens an incident issue (mode D).
 4. Create the labels `incident` and `omnis-guardian` (**Manage → Labels**) so incident issues
    are labelled.
 
-## 5. Hourly production monitor
+## 5. Scheduled production monitor
 
 **Build → Pipeline schedules → New schedule**: description `Omnis Guardian production monitor`,
-interval `0 * * * *` (hourly), target branch `main`, active. Each run executes only
+interval `0 */2 * * *` (every two hours, which keeps a free group inside its 400 CI minutes), target branch `main`, active. Each run executes only
 `monitor_production`: live probes, plus drift checks that the service serves the last approved
 digest with the settings in `guardian/gcp/runtime-config.json`. Press **Run** once to see it
 pass. To intentionally change a runtime setting, edit `runtime-config.json` in a merge request;

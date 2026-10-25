@@ -34,7 +34,7 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 
 | | Upstream Kutt v3.2.6 (before) | With Omnis Guardian on GitLab (after) |
 |---|---|---|
-| CI | 3 GitHub Actions workflows that build and push a Docker image | 16 GitLab CI jobs across merge request, release and hourly monitor pipelines (verify, secure, package, release, deploy, monitor) |
+| CI | 3 GitHub Actions workflows that build and push a Docker image | 16 GitLab CI jobs across merge request, release and scheduled monitor pipelines (verify, secure, package, release, deploy, monitor) |
 | Tests | None | 19 integration and regression tests that boot a real Kutt |
 | Security | No scanning; v3.2.6 shipped with **3 critical and 5 high** npm advisories | Semgrep (Knex-aware rules), Secret Detection and npm audit, behind a fail-closed `security_gate` |
 | When a check fails | A maintainer investigates alone | A Duo flow diagnoses, proposes a plan and waits; on approval it opens a fix MR with a regression test |
@@ -42,7 +42,7 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 | Code review | Manual only, no automated review | GitLab Duo Code Review on every MR, plus a person who merges |
 | Release | Unsigned image pushed to Docker Hub on every push to `main` and on each GitHub release | Approver-checked `release_gate`, Sigstore-signed image, SLSA v1 provenance re-verified before release |
 | Deploy | Left to each self-hoster | Cloud Run by digest: no-traffic candidate, smoke test, promote, automatic rollback |
-| After deploy | Nothing watches production | Hourly live probes and configuration drift checks; a failure makes Duo open an incident with a diagnosis |
+| After deploy | Nothing watches production | Live probes and configuration drift checks every two hours; a failure makes Duo open an incident with a diagnosis |
 | Evidence | None | Public dashboard built from live pipeline data, with SCI carbon per pipeline |
 
 ## Lifecycle coverage
@@ -55,8 +55,8 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 | Secure | Semgrep (Knex-aware rules) · GitLab Secret Detection · npm audit → `security_gate`, fails closed | — |
 | Package | Container image built from the commit, booted and smoke-tested in CI | — |
 | Release | Approver-checked `release_gate` → GitLab release | start the gate |
-| Configure | Cloud Run runtime settings as code ([`runtime-config.json`](guardian/gcp/runtime-config.json)), applied by every deploy and **drift-checked hourly**: live traffic, image digest, CPU, memory, scaling, secrets and labels must match the approved release · `config_check` validates the pipeline, the Duo flow and the Duo agent | change config by MR |
-| Monitor | Every deploy: candidate smoke → promote → production check → auto-rollback. **Every hour**: scheduled `monitor_production` re-runs the live probes; a failure triggers the Duo flow to open an incident | act on the incident |
+| Configure | Cloud Run runtime settings as code ([`runtime-config.json`](guardian/gcp/runtime-config.json)), applied by every deploy and **drift-checked every two hours**: live traffic, image digest, CPU, memory, scaling, secrets and labels must match the approved release · `config_check` validates the pipeline, the Duo flow and the Duo agent | change config by MR |
+| Monitor | Every deploy: candidate smoke → promote → production check → auto-rollback. **Every two hours**: scheduled `monitor_production` re-runs the live probes; a failure triggers the Duo flow to open an incident | act on the incident |
 | Govern | Sigstore keyless signature + signed SLSA v1 attestation on the image digest, verified before release; per-pipeline SCI carbon report | — |
 
 ## Live
@@ -115,6 +115,19 @@ bug to find. Everything that happened after it was pushed (scanner, Duo, CI, rev
     `kutt-00003-vav` with 0% of traffic, passed all 5 smoke checks against the candidate URL, promoted
     it over `kutt-00002-g72`, and passed the same 5 checks on production. Release:
     [guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64).
+12. **Duo Code Review on our own monitor.** [MR !10](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/10) added the scheduled
+    production monitor. Duo Code Review blocked it twice: a CPU drift check that would have compared
+    `"1"` with `"1000m"` as strings, and literal invisible characters in the prompt-safety regex. Both
+    were fixed before Duo approved. An independent review then found that "latest artifact on main"
+    lookups would break once a scheduled pipeline passed; [MR !11](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/11) reads artifacts by job id.
+13. **Drift drill, end to end (25 Oct).** The first scheduled run passed all 10 configuration checks and 5
+    live probes ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448637888)). A person then changed the live service by hand
+    in the Cloud Run console (max instances 1 → 2) and routed traffic to it. The next run caught it,
+    `DRIFT  max instances: expected 1, found 2` ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448852788)), and the failed scheduled
+    pipeline triggered the Duo flow, which opened [incident #1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) with a diagnosis and the
+    exact deploy job to retry. A person retried it ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448889191)): candidate, smoke test,
+    promoted the approved digest with the declared settings. The next run passed
+    ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448928237)) and the person closed the incident. Duo never touched production.
 
 Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines).
 
