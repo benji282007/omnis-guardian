@@ -148,7 +148,8 @@ async function get(match, params) {
   // Sort by any column, e.g. ?sort=visit_count:desc
   const sort = parseSort(params?.sort);
   if (sort) {
-    query.orderBy("links." + sort.column, sort.direction);
+    // links.id breaks ties so offset/limit pagination stays stable.
+    query.orderBy("links." + sort.column, sort.direction).orderBy("links.id", "desc");
   } else {
     query.orderBy("links.id", "desc");
   }
