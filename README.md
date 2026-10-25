@@ -23,6 +23,27 @@ Built for the GitLab Transcend "Life After Code" hackathon · **Path B (Bring Yo
 https://github.com/thedevs-network/kutt. What we added is listed in
 [guardian/docs/WHAT-CHANGED.md](guardian/docs/WHAT-CHANGED.md).
 
+## Who it's for
+
+Maintainers of small open-source and self-hosted projects: a handful of volunteers, no
+security team and no release engineer. Kutt is a typical example. AI tools now write code faster
+than these teams can check it is safe to ship. Omnis Guardian gives them an agent that does the
+investigating and a pipeline that does the proving, while the maintainer keeps every decision.
+
+## Before and after (Path B)
+
+| | Upstream Kutt v3.2.6 (before) | With Omnis Guardian on GitLab (after) |
+|---|---|---|
+| CI | 3 GitHub Actions workflows that build and push a Docker image | 15-job GitLab pipeline across verify, secure, package, release and deploy |
+| Tests | None | 19 integration and regression tests that boot a real Kutt |
+| Security | No scanning; v3.2.6 shipped with **3 critical and 5 high** npm advisories | Semgrep (Knex-aware rules), Secret Detection and npm audit, behind a fail-closed `security_gate` |
+| When a check fails | A maintainer investigates alone | A Duo flow diagnoses, proposes a plan and waits; on approval it opens a fix MR with a regression test |
+| Proof a fix works | Reviewer's judgment | `regression_proof`: the new test must fail on the old code and pass on the fix |
+| Code review | Manual only, no automated review | GitLab Duo Code Review on every MR, plus a person who merges |
+| Release | Unsigned image pushed to Docker Hub on every push to `main` and on each GitHub release | Approver-checked `release_gate`, Sigstore-signed image, SLSA v1 provenance re-verified before release |
+| Deploy | Left to each self-hoster | Cloud Run by digest: no-traffic candidate, smoke test, promote, automatic rollback |
+| Evidence | None | Public dashboard built from live pipeline data, with SCI carbon per pipeline |
+
 ## Lifecycle coverage
 
 | Stage | What runs | Human approval |

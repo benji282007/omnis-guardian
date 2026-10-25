@@ -24,6 +24,17 @@ finding nobody has time to read, a fix nobody can prove, a release nobody can vo
 real users: let the agent do the investigation, keep a person on every decision, and make CI, not
 the agent, the judge.
 
+**Who it's for:** maintainers of small open-source and self-hosted projects, a handful of
+volunteers with no security team and no release engineer. AI tools now write code faster than these
+teams can check it is safe to ship.
+
+**Before and after (Path B):** upstream Kutt v3.2.6 had three GitHub Actions workflows that build
+and push a Docker image, no tests, no security scanning, and shipped with 3 critical and 5 high npm
+advisories. On GitLab with Omnis Guardian it has a 15-job pipeline, 19 integration and regression
+tests, three scanners behind a fail-closed gate, a Duo flow that diagnoses and fixes on approval,
+proof that every fix works, signed releases a person approves, and a Cloud Run deploy with candidate
+testing and automatic rollback. The full table is in the README.
+
 ## What it does
 
 Omnis Guardian wraps **Kutt**, a self-hosted URL shortener with about 10k GitHub stars, in a GitLab
