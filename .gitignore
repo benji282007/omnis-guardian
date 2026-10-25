@@ -26,3 +26,4 @@ release-evidence.json
 carbon-report.json
 gl-*-report.json
 junit-*.xml
+__pycache__/
