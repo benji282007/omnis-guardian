@@ -53,7 +53,8 @@ workflow where a person approves every step.
 
 **It caught real problems on day one.** The first pipeline on unmodified upstream Kutt v3.2.6 was
 blocked with **3 critical and 5 high** npm advisories. The upgrade cleared all of them, and every
-Kutt test still passed.
+Kutt test still passed. Two moderate advisories remain (`uuid` through Bull); the only fix is a
+Bull downgrade, so they stay reported in the pipeline rather than hidden.
 
 ## How we built it
 
@@ -86,7 +87,9 @@ Kutt test still passed.
   until we fixed the comparison.
 - **GitLab Duo Code Review made the flow safer.** It found that a forged plan comment could have
   been approved, that the revise path could touch CI files, and that an access check failed open.
-  All three are fixed.
+  All three are fixed. The access check now refuses on any error except one: if the flow's token
+  cannot read membership (HTTP 403 `insufficient_scope`), it relies on GitLab's composite identity,
+  which still blocks anyone below Developer from creating branches or commits.
 - GitLab rejects prompts that contain HTML comments, so `config_check` now checks for that before
   a flow ever reaches GitLab.
 
