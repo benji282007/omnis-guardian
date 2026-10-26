@@ -78,6 +78,22 @@ security team and no release engineer. Kutt is a typical example. AI tools now w
 than these teams can check it is safe to ship. Omnis Guardian gives them an agent that does the
 investigating and a pipeline that does the proving, while the maintainer keeps every decision.
 
+## Use it on your own project
+
+Most of the pipeline does not depend on Kutt. What carries over, what needs a setting and what you rewrite:
+
+| Part | Files | To adopt |
+|---|---|---|
+| Fail-closed security gate | `guardian/ci/security-gate.mjs` | As is: reads any GitLab SAST, Secret Detection or dependency report. `SECURITY_GATE_BLOCKING` sets the severities. |
+| Approver-checked release gate, signing, provenance | `release-gate.mjs`, `verify-signatures.sh`, `provenance.mjs`, `verify-provenance.mjs`, `build-image.sh` | Set `RELEASE_APPROVERS`; change the image name `kutt` in `build-image.sh` and `.gitlab-ci.yml`. |
+| SCI carbon report | `guardian/ci/carbon-report.mjs` | As is: works on any GitLab pipeline's jobs. |
+| Regression proof | `guardian/ci/regression-proof.mjs` | Node `node --test` projects: set `GUARDIAN_SOURCE_PREFIXES` and `GUARDIAN_TEST_REGEX`. Other test runners need a new result parser. |
+| Dependency scan | `guardian/ci/dependency-report.mjs` | npm projects as is; other ecosystems use GitLab Dependency Scanning instead. |
+| Duo flow and Release Assistant | `.gitlab/duo/` | Rewrite the parts that name Kutt's test helper (`test/helpers/kutt.js`) and paths; the modes, approval checks and refusals stay. `config_check` validates the result. |
+| Smoke test, deploy, monitor | `smoke.mjs`, `deploy-cloudrun.sh`, `monitor*.mjs/sh`, `guardian/gcp/` | Rewrite the smoke journeys for your app. Cloud Run deploy and drift checks carry over with `runtime-config.json` edited. |
+
+[SETUP.md](guardian/docs/SETUP.md) walks through the GitLab and Google Cloud steps.
+
 ## Before and after (Path B)
 
 | | Upstream Kutt v3.2.6 (before) | With Omnis Guardian on GitLab (after) |
