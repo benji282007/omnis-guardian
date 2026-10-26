@@ -16,6 +16,32 @@
 
 ---
 
+## In 20 seconds
+
+A GitLab Duo flow investigates failures in a real open-source app and proposes a fix, then waits.
+A maintainer approves. CI decides whether the fix is real: the new test must fail on the old code and
+pass on the fix. A person releases, Cloud Run deploys a tested candidate, and a scheduled monitor keeps
+checking production. When we changed production by hand, it caught the drift and Duo opened an
+incident with the fix, which a person applied. Every step below links to the real run.
+
+| GitLab stage | What runs | Evidence |
+|---|---|---|
+| Plan | Duo flow posts a diagnosis and plan on the MR, or an incident for production | [MR !4 plan](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4) · [incident #1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) |
+| Create | After approval, the flow opens a fix MR with a regression test | [MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6) |
+| Verify | Integration tests, and regression proof against the old code and the fix | [PROVEN](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17445549698) |
+| Secure | Semgrep (Knex-aware rules), Secret Detection, npm audit, fail-closed gate | [feature blocked](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830) |
+| Package | Image built, booted and smoke-tested; signed with SLSA provenance | [pipeline #96](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986648931) |
+| Release | A person starts the approver-checked `release_gate` | [release_gate](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104756) |
+| Configure | Runtime settings as code, drift-checked every two hours | [DRIFT caught](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448852788) |
+| Monitor | Canary deploy, promote, auto-rollback; scheduled live probes | [candidate → promoted](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104758) |
+| Govern | Signatures and provenance re-verified before release; SCI carbon per pipeline | [provenance docs](https://gitlab.com/omnis-guardian1/omnis-guardian/-/blob/main/guardian/docs/PROVENANCE.md) |
+
+**What is new.** Most "AI fixes CI" demos treat the agent's patch as the result. Here the agent's
+output is only a proposal: a person approves the plan, and CI must prove the fix by running the new
+test against the old code too, which is how it rejected the agent's own first test before a revision
+passed. The same boundary holds after release: the agent diagnoses production incidents and
+recommends the fix, and a person applies it.
+
 ## Inspiration
 
 Code generation is fast now. What still stalls a release is everything after it: a security
@@ -72,7 +98,8 @@ CI and the canary deploy run automatically between those decisions.
    the maintainer's. Our group's Duo credits ran out before we recorded a chat session with it, so
    unlike everything else here it has no public run to link.
 9. **Show the evidence.** A Pages dashboard summarizes all nine GitLab stages, each linked to the
-   pipeline, job or merge request behind it, plus a per-pipeline SCI carbon figure. Nothing on it is simulated.
+   pipeline, job or merge request behind it, plus a per-pipeline SCI carbon figure. Every value comes
+   from a real run; the only seeded input is the risky feature in MR !4, which exists to be caught.
 
 **It caught real problems on day one.** The first pipeline on unmodified upstream Kutt v3.2.6 was
 blocked with **3 critical and 5 high** npm advisories. The upgrade cleared all of them, and every

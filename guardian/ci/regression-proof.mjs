@@ -6,7 +6,7 @@
 //   2. fail with an assertion failure against the code it is fixing (BASE).
 // That shows the test actually detects the defect instead of passing trivially.
 //
-// Usage: node scripts/ci/regression-proof.mjs [--base <sha>] [--head <sha>] [--require-test] [--out file]
+// Usage: node guardian/ci/regression-proof.mjs [--base <sha>] [--head <sha>] [--require-test] [--out file]
 // In merge request pipelines BASE defaults to CI_MERGE_REQUEST_DIFF_BASE_SHA.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, symlinkSync } from 'node:fs';

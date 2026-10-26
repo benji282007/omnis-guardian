@@ -3,7 +3,7 @@
 // and fails the job when blocking findings exist. Fails closed: a missing,
 // unreadable or unsuccessful report blocks the pipeline too.
 //
-// Usage: node scripts/ci/security-gate.mjs <report.json>... [--out security-summary.json]
+// Usage: node guardian/ci/security-gate.mjs <report.json>... [--out security-summary.json]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
@@ -30,8 +30,10 @@ export function evaluateReports(inputs, blocking = DEFAULT_BLOCKING) {
       problems.push(`${path}: not a GitLab security report (no vulnerabilities array)`);
       continue;
     }
+    // Fail closed: GitLab security report schema v15 requires scan.status; anything but "success"
+    // (including a missing status) means the scan cannot be trusted to have run.
     const status = report.scan?.status;
-    if (status && status !== 'success') problems.push(`${path}: scan status is "${status}"`);
+    if (status !== 'success') problems.push(`${path}: scan status is ${status ? `"${status}"` : 'missing'}`);
 
     for (const v of report.vulnerabilities) {
       const severity = SEVERITIES.includes(v.severity) ? v.severity : 'Unknown';

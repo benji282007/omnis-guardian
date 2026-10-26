@@ -15,7 +15,7 @@ import {
   incidentStory
 } from './model.js';
 
-const REFRESH_MS = 30_000;
+const REFRESH_MS = 120_000; // polite to GitLab's anonymous API limits; paused while the tab is hidden
 const $ = (id) => document.getElementById(id);
 
 function h(tag, attrs = {}, ...children) {
@@ -418,7 +418,10 @@ async function refresh(config, evidence) {
 async function main() {
   const [config, evidence] = await Promise.all([tryJson('config.json'), tryJson('evidence.json')]);
   await refresh(config, evidence);
-  if (config?.projectId) setInterval(() => refresh(config, evidence), REFRESH_MS);
+  if (config?.projectId) {
+    setInterval(() => { if (!document.hidden) refresh(config, evidence); }, REFRESH_MS);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(config, evidence); });
+  }
 }
 
 main();
