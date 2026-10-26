@@ -94,7 +94,7 @@ Bull downgrade, so they stay reported in the pipeline rather than hidden.
   v1 provenance built from the registry digest, verified again before release.
 - **Kutt:** imported with full upstream history. We added an integration test suite (upstream has
   none), dependency upgrades, and `engines`. Everything else is in `guardian/`.
-- 19 Kutt integration and regression tests, and 50 tests for the Guardian tooling.
+- 19 Kutt integration and regression tests, and 53 tests for the Guardian tooling.
 
 ## Challenges we ran into
 
