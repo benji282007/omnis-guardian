@@ -22,7 +22,7 @@ A GitLab Duo flow investigates failures in a real open-source app and proposes a
 A maintainer approves. CI decides whether the fix is real: the new test must fail on the old code and
 pass on the fix. A person releases, Cloud Run deploys a tested candidate, and a scheduled monitor keeps
 checking production. When we changed production by hand, it caught the drift and Duo opened an
-incident with the fix, which a person applied. Every step below links to the real run.
+incident with a diagnosis and the recommended fix, which a person applied. Every step below links to the real run.
 
 | GitLab DevSecOps stage | What runs | Evidence |
 |---|---|---|
@@ -36,7 +36,7 @@ incident with the fix, which a person applied. Every step below links to the rea
 | Monitor | Canary deploy, promote, auto-rollback; scheduled live probes | [candidate → promoted](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104758) |
 | Govern | Signatures and provenance re-verified before release; SCI carbon per pipeline | [provenance docs](https://gitlab.com/omnis-guardian1/omnis-guardian/-/blob/main/guardian/docs/PROVENANCE.md) |
 
-**What is new.** Most "AI fixes CI" demos treat the agent's patch as the result. Here the agent's
+**What is new.** Fail-to-pass tests are how benchmarks such as SWE-bench grade agent patches offline. We make that check a live merge gate in GitLab CI, then put a person's approval before the agent acts and after CI proves it. Most "AI fixes CI" demos treat the agent's patch as the result. Here the agent's
 output is only a proposal: a person approves the plan, and CI must prove the fix by running the new
 test against the old code too, which is how it rejected the agent's own first test before a revision
 passed. The same boundary holds after release: the agent diagnoses production incidents and
@@ -127,7 +127,7 @@ metered measurements, and we claim no emissions reduction beyond these design ch
 - **GitLab Duo Agent Platform:** a custom flow (flow registry v1) with a planner and an executor
   agent and four modes (plan, approve, revise, incident triage), plus a read-only custom agent for
   Duo Chat, all using only GitLab API tools. The flow is triggered by *Pipeline events → Failed* and *Mention*,
-  and runs under composite identity. GitLab Duo Code Review reviewed every merge request.
+  and runs under composite identity. GitLab Duo Code Review reviewed our merge requests and caught real bugs in two of them.
 - **GitLab CI/CD:** 16 jobs across verify, secure, package, release and deploy, running on hosted
   runners. Also used: the Secret Detection template, the release keyword, Pages, protected
   variables, `id_tokens` for Sigstore and for Google Cloud, and dotenv artifacts.
@@ -164,7 +164,7 @@ metered measurements, and we claim no emissions reduction beyond these design ch
 
 - A complete loop on a real, popular app: detect → plan → approve → fix → prove → release → deploy.
 - A real drift drill: someone changed production by hand, the scheduled monitor caught it, Duo opened
-  an incident with the exact fix, a person applied it through the approved deploy, and the next check
+  an incident with the recommended fix, a person applied it through the approved deploy, and the next check
   passed. Duo never touched production
   ([incident #1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1)).
 - Every result on the dashboard and in the README links to a real pipeline, merge request, job or release.

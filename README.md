@@ -103,7 +103,7 @@ Most of the pipeline does not depend on Kutt. What carries over, what needs a se
 | Security | No scanning; v3.2.6 shipped with **3 critical and 5 high** npm advisories | Semgrep (Knex-aware rules), Secret Detection and npm audit, behind a fail-closed `security_gate` |
 | When a check fails | A maintainer investigates alone | A Duo flow diagnoses, proposes a plan and waits; on approval it opens a fix MR with a regression test |
 | Proof a fix works | Reviewer's judgment | `regression_proof`: the new test must fail on the old code and pass on the fix |
-| Code review | Manual only, no automated review | GitLab Duo Code Review on every MR, plus a person who merges |
+| Code review | Manual only, no automated review | GitLab Duo Code Review on our merge requests, plus a person who merges |
 | Release | Unsigned image pushed to Docker Hub on every push to `main` and on each GitHub release | Approver-checked `release_gate`, Sigstore-signed image, SLSA v1 provenance re-verified before release |
 | Deploy | Left to each self-hoster | Cloud Run by digest: no-traffic candidate, smoke test, promote, automatic rollback |
 | After deploy | Nothing watches production | Live probes and configuration drift checks every four hours; a failure makes Duo open an incident with a diagnosis |
@@ -152,7 +152,8 @@ bug to find. Everything that happened after it was pushed (scanner, Duo, CI, rev
    started `release_gate` (recorded approver: `fl4sh28`); the image was copied by digest to Artifact
    Registry and deployed to Cloud Run, where all 5 production smoke checks passed.
 5. **A risky feature arrives (seeded demo).** [MR !4](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4) adds `?sort=column:direction` using
-   `orderByRaw` with interpolated input. Its tests pass; `security_gate` blocks it
+   `orderByRaw` with interpolated input. Kutt's integration tests pass, but `security_gate` blocks it
+   and `regression_proof` fails too
    ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830)).
 6. **Duo diagnoses and waits.** The failed pipeline triggered the Omnis Guardian flow, which posted a
    diagnosis and fix plan on MR !4 and did nothing further until a maintainer replied `approve`.
@@ -204,7 +205,7 @@ Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipeli
 | Triggers: Pipeline failed, Mention | set up in AI > Triggers ([SETUP.md](guardian/docs/SETUP.md)) | each run is a `duo_workflow` pipeline in [Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines?source=duo_workflow) |
 | Service account and composite identity | the flow's commits and notes are by `@ai-omnis-guardian-omnis-guardian` | [revise commit on MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6) |
 | Custom agent (read-only Release Assistant) | [`.gitlab/duo/agents/release-assistant.yml`](.gitlab/duo/agents/release-assistant.yml) | created and enabled; no recorded chat (Duo credits ran out) |
-| GitLab Duo Code Review on every MR | MR reviews | caught real bugs in [MR !10](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/10) and [MR !13](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/13) |
+| GitLab Duo Code Review | MR reviews | caught real bugs in [MR !10](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/10) and [MR !13](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/13) |
 | `AGENTS.md` repository rules | [`AGENTS.md`](AGENTS.md) | repository rules for agents working here (smallest fix, allow-lists, a regression test, never touch CI); the flow's prompts encode the same rules |
 | Config validation before GitLab sees it | [`guardian/ci/validate_config.py`](guardian/ci/validate_config.py) in `config_check` | rejects unknown or write tools for the agent, hidden prompt characters, broken routers |
 
