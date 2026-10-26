@@ -11,7 +11,8 @@ import {
   formatAgo,
   summariseMonitorRuns,
   summariseMonitorResult,
-  summariseIncident
+  summariseIncident,
+  incidentStory
 } from './model.js';
 
 const REFRESH_MS = 30_000;
@@ -84,7 +85,14 @@ async function loadLive(config) {
   const monitorJobs = monitorPipeline ? ((await tryJson(api(config, `/pipelines/${monitorPipeline.id}/jobs?per_page=20`))) ?? []).filter((j) => j.name === 'monitor_production') : [];
   const monitor = monitorJobs[0] ? await tryJson(api(config, `/jobs/${monitorJobs[0].id}/artifacts/monitor-result.json`)) : null;
   const incidents = ((await tryJson(api(config, '/issues?labels=incident&state=all&per_page=5&order_by=created_at&sort=desc'))) ?? []).map((i) => summariseIncident(i));
-  return { pipelines, latest, jobs, guardian, releases, deploy, monitorPipeline, monitorJobs, monitor, monitorRuns, incidents };
+  // The scheduled runs around the newest incident, so its story survives as newer runs arrive.
+  let storyRuns = [];
+  if (incidents[0]?.openedAt) {
+    const from = new Date(Date.parse(incidents[0].openedAt) - 3 * 3600_000).toISOString();
+    const to = new Date(Date.parse(incidents[0].closedAt ?? new Date().toISOString()) + 3 * 3600_000).toISOString();
+    storyRuns = (await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&updated_after=${from}&updated_before=${to}&per_page=40`))) ?? [];
+  }
+  return { pipelines, latest, jobs, guardian, releases, deploy, monitorPipeline, monitorJobs, monitor, monitorRuns, incidents, storyRuns };
 }
 
 /* ---------------------------------------------------------------- render */
@@ -196,6 +204,16 @@ function renderWatch(live) {
     ? `last ${runs.runs.length} scheduled runs: ${runs.passed} passed, ${runs.failed} failed · newest ${formatAgo(runs.runs[0].at)}`
     : '';
   const incidents = live?.incidents ?? [];
+  const when = (iso) => (iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'not recorded');
+  $('incident-story').replaceChildren(
+    ...incidentStory(incidents[0], live?.storyRuns ?? []).map((step, n) =>
+      h('li', { class: 'story-step', dataset: { done: String(step.done) } },
+        h('span', { class: 'story-num' }, String(n + 1)),
+        h('div', {},
+          step.url ? link(step.url, step.label, 'story-label') : h('span', { class: 'story-label' }, step.label),
+          h('div', { class: 'mr-meta' }, when(step.at)))))
+  );
+  $('incident-story').hidden = incidents.length === 0;
   $('incident-list').replaceChildren(
     ...(incidents.length
       ? incidents.map((i) =>
@@ -300,6 +318,8 @@ function renderDeploy(live, evidence) {
   if (d?.url && d.status === 'deployed') {
     live_.hidden = false;
     live_.href = d.url;
+    $('gate-live').hidden = false;
+    $('gate-live').href = d.url;
   }
   const s = evidence?.smoke;
   if (!s) return $('probes').replaceChildren(h('li', { class: 'empty' }, 'No image smoke result in this build’s evidence.'));

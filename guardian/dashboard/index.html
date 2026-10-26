@@ -39,7 +39,10 @@
           <h1 id="gate-title">Loading release state…</h1>
           <p id="gate-text" class="muted"></p>
         </div>
-        <a id="gate-action" class="btn btn-primary" href="#" target="_blank" rel="noopener" hidden>Open in GitLab</a>
+        <div class="gate-actions">
+          <a id="gate-action" class="btn btn-primary" href="#" target="_blank" rel="noopener" hidden>Open in GitLab</a>
+          <a id="gate-live" class="btn" href="#" target="_blank" rel="noopener" hidden>Live app ↗</a>
+        </div>
       </div>
       <dl class="gate-facts" id="gate-facts"></dl>
     </section>
@@ -60,6 +63,7 @@
       <p class="muted small">Every two hours a scheduled pipeline re-runs the live probes and checks that Cloud Run serves
         exactly the approved digest with the declared settings. A failure triggers the Duo flow, which opens an incident
         with a diagnosis and waits for a person. It never changes production.</p>
+      <ol class="story" id="incident-story" aria-label="Latest incident, step by step"></ol>
       <div class="watch-grid">
         <div>
           <div class="subhead">Newest scheduled check</div>

@@ -12,7 +12,8 @@ import {
   formatAgo,
   summariseMonitorRuns,
   summariseMonitorResult,
-  summariseIncident
+  summariseIncident,
+  incidentStory
 } from '../model.js';
 
 const job = (id, name, status, extra = {}) => ({ id, name, status, web_url: `https://gitlab.example/-/jobs/${id}`, ...extra });
@@ -143,4 +144,25 @@ test('an incident records whether the Duo flow opened it and who closed it', () 
   assert.equal(i.openedByDuo, true);
   assert.equal(i.closedBy, 'Benjamin Chacko');
   assert.equal(summariseIncident({ iid: 2, author: { username: 'someone' } }).openedByDuo, false);
+});
+
+test('the incident story is built from the real runs around it', () => {
+  const incident = { iid: 1, url: 'i', openedByDuo: true, openedAt: '2026-10-25T14:09:46Z', closedAt: '2026-10-25T14:19:56Z', closedBy: 'Benjamin Chacko' };
+  const runs = [
+    { status: 'success', created_at: '2026-10-25T14:16:13Z', web_url: 'pass' },
+    { status: 'failed', created_at: '2026-10-25T14:07:42Z', web_url: 'fail' },
+    { status: 'success', created_at: '2026-10-25T14:00:58Z', web_url: 'before' }
+  ];
+  const s = incidentStory(incident, runs);
+  assert.deepEqual(s.map((x) => x.url), ['fail', 'i', 'pass', 'i']);
+  assert.ok(s.every((x) => x.done));
+  assert.match(s[1].label, /Duo flow opened incident #1/);
+  assert.match(s[3].label, /Closed by Benjamin Chacko/);
+});
+
+test('a story with missing records says so instead of guessing', () => {
+  const s = incidentStory({ iid: 2, url: 'i', openedByDuo: true, openedAt: '2026-10-25T14:09:46Z', closedAt: null }, []);
+  assert.equal(s[0].done, false);
+  assert.equal(s[2].done, false);
+  assert.match(s[3].label, /Awaiting a person/);
 });

@@ -185,6 +185,25 @@ export function summariseMonitorResult(result) {
   };
 }
 
+/**
+ * The incident as a four-step story, built only from real records: the failed scheduled run
+ * that caught it, the issue the Duo flow opened, the first scheduled run that passed after it,
+ * and who closed the issue. `runs` are scheduled pipelines around the incident's time.
+ */
+export function incidentStory(incident, runs = []) {
+  if (!incident) return [];
+  const t = (iso) => Date.parse(iso);
+  const sorted = runs.slice().sort((a, b) => t(a.created_at) - t(b.created_at));
+  const caught = sorted.filter((r) => r.status === 'failed' && t(r.created_at) <= t(incident.openedAt)).pop() ?? null;
+  const passed = caught ? sorted.find((r) => r.status === 'success' && t(r.created_at) > t(caught.created_at)) ?? null : null;
+  return [
+    { key: 'caught', label: 'Drift caught by the scheduled check', at: caught?.created_at ?? null, url: caught?.web_url ?? null, done: !!caught },
+    { key: 'opened', label: `${incident.openedByDuo ? 'Duo flow' : incident.openedBy} opened incident #${incident.iid} with a diagnosis`, at: incident.openedAt, url: incident.url, done: true },
+    { key: 'passed', label: 'A person redeployed the approved release; the next check passed', at: passed?.created_at ?? null, url: passed?.web_url ?? null, done: !!passed },
+    { key: 'closed', label: incident.closedAt ? `Closed by ${incident.closedBy ?? 'a person'}` : 'Awaiting a person', at: incident.closedAt, url: incident.url, done: !!incident.closedAt }
+  ];
+}
+
 /** An incident issue, with who opened it (the Duo flow's service account or a person) and who closed it. */
 export function summariseIncident(issue, guardianPrefix = 'ai-omnis-guardian') {
   const opener = issue.author?.username ?? null;
