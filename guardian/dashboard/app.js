@@ -200,9 +200,11 @@ function renderWatch(live) {
       h('a', { class: 'run', dataset: { tone: r.tone }, href: r.url, target: '_blank', rel: 'noopener', title: `${r.status} · ${formatAgo(r.at)}` }, '')
     )
   );
-  $('watch-runs-meta').textContent = runs.runs.length
-    ? `last ${runs.runs.length} scheduled runs: ${runs.passed} passed, ${runs.failed} failed · newest ${formatAgo(runs.runs[0].at)}`
-    : '';
+  const newestJob = live?.monitorJobs?.[0];
+  $('watch-runs-meta').replaceChildren(
+    runs.runs.length ? `last ${runs.runs.length} scheduled runs: ${runs.passed} passed, ${runs.failed} failed · newest ${formatAgo(runs.runs[0].at)}` : '',
+    newestJob ? h('span', {}, ' · ', link(newestJob.web_url, 'open the newest monitor job')) : ''
+  );
   const incidents = live?.incidents ?? [];
   const when = (iso) => (iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'not recorded');
   $('incident-story').replaceChildren(
@@ -315,10 +317,11 @@ function renderDeploy(live, evidence) {
     : [['Status', live ? 'No deploy_production job has published a result yet.' : 'Live GitLab data is needed.']];
   $('deploy').replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', { class: k === 'Image' || k === 'Revision' || k === 'Previous' ? 'mono' : '' }, v)]));
   const live_ = $('live-link');
-  if (d?.url && d.status === 'deployed') {
-    live_.hidden = false;
+  // Reset on every refresh so a link never outlives the deploy result it came from.
+  live_.hidden = !(d?.url && d.status === 'deployed');
+  $('gate-live').hidden = live_.hidden;
+  if (!live_.hidden) {
     live_.href = d.url;
-    $('gate-live').hidden = false;
     $('gate-live').href = d.url;
   }
   const s = evidence?.smoke;
