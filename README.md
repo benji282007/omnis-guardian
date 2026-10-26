@@ -55,7 +55,7 @@ flowchart LR
 | The Duo flow can | The Duo flow cannot |
 |---|---|
 | Read job logs, code, merge requests and issues | Merge, approve, release or deploy (it has no such tools, and its service account has Developer access only) |
-| Post a diagnosis and plan, then stop | Touch production (it has no Google Cloud access; only the protected `main` pipeline does, keylessly) |
+| Post a diagnosis and plan, then stop | Touch production (it has no Google Cloud access; only jobs on the protected `main` branch have it, keylessly: the deploy and the scheduled monitor) |
 | After `approve`: create one `guardian/fix-*` branch, one commit, one MR | Change `.gitlab-ci.yml`, `.gitlab/`, `guardian/` or existing tests (its prompts forbid it, and for a revision the executor refuses any such file before committing) |
 | After `revise`: push one corrective commit to its own fix MR | Count its own work as done: `regression_proof`, `unit_tests` and `security_gate` decide |
 | Open or update an incident issue when a scheduled check fails | Fix an incident: it recommends the action, a person takes it |

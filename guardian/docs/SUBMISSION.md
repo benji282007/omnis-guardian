@@ -24,7 +24,7 @@ pass on the fix. A person releases, Cloud Run deploys a tested candidate, and a 
 checking production. When we changed production by hand, it caught the drift and Duo opened an
 incident with the fix, which a person applied. Every step below links to the real run.
 
-| GitLab stage | What runs | Evidence |
+| GitLab DevSecOps stage | What runs | Evidence |
 |---|---|---|
 | Plan | Duo flow posts a diagnosis and plan on the MR, or an incident for production | [MR !4 plan](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4) · [incident #1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) |
 | Create | After approval, the flow opens a fix MR with a regression test | [MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6) |
