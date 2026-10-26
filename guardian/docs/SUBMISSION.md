@@ -92,11 +92,10 @@ CI and the canary deploy run automatically between those decisions.
    `runtime-config.json`. A failure triggers the same Duo flow, which reads the logs and opens an
    **incident issue** with a diagnosis and a recommended action. It never touches production; a
    person acts, and the next scheduled check confirms the fix.
-8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, is created and
-   enabled in the project for Duo Chat. It is built to answer "is this safe to ship?" on a merge
-   request or incident from the gate results and job logs, and to name the decision that is still
-   the maintainer's. Our group's Duo credits ran out before we recorded a chat session with it, so
-   unlike everything else here it has no public run to link.
+8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, is published in
+   the AI Catalog to answer "is this safe to ship?" from gate results and job logs, naming the
+   decision that stays the maintainer's. Duo credits ran out in both our project and the hackathon
+   showcase before we could record a chat, so it has no public run to link.
 9. **Show the evidence.** A Pages dashboard summarizes all nine GitLab stages, each linked to the
    pipeline, job or merge request behind it, plus a per-pipeline SCI carbon figure. Every value comes
    from a real run; the only seeded input is the risky feature in MR !4, which exists to be caught.
