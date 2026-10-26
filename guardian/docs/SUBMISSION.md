@@ -4,7 +4,7 @@
 
 **Tagline:** An assisted release guardian for real open-source apps: GitLab Duo diagnoses and fixes, CI proves the fix, and a person approves the plan, the merge and the release.
 
-**Path:** B (Bring Your Own) · **Autonomy level:** Assisted · **Special prize:** Most Stages Covered (Path B)
+**Path:** B (Bring Your Own) · **Autonomy level:** Assisted · **Special prizes:** Most Stages Covered (Path B), and opted in to Most Environmentally Impactful (see Sustainability)
 
 **Links**
 - Repository: https://gitlab.com/omnis-guardian1/omnis-guardian
