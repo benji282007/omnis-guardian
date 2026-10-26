@@ -94,6 +94,8 @@ Most of the pipeline does not depend on Kutt. What carries over, what needs a se
 
 [SETUP.md](guardian/docs/SETUP.md) walks through the GitLab and Google Cloud steps.
 
+The integration tests are offered upstream to Kutt in [thedevs-network/kutt#1061](https://github.com/thedevs-network/kutt/issues/1061).
+
 ## Before and after (Path B)
 
 | | Upstream Kutt v3.2.6 (before) | With Omnis Guardian on GitLab (after) |

@@ -177,7 +177,9 @@ plan, and making CI prove the result turned out more reliable than letting it ac
 
 ## What's next
 
-Upstream the dependency upgrades and the integration test suite to Kutt. Then make adoption a
+Upstream the integration tests to Kutt: we offered them in
+[thedevs-network/kutt#1061](https://github.com/thedevs-network/kutt/issues/1061), since Kutt has no test
+suite and its `main` still reports 3 critical and 5 high npm advisories. Then make adoption a
 template: the security gate, release gate, signing and carbon report are written to run unchanged on other
 GitLab projects; the regression proof needs two settings for Node projects; the Duo flow prompt and
 smoke journeys are the parts each project rewrites. The README's "Use it on your own project" table
