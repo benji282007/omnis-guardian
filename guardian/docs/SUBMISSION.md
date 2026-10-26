@@ -2,7 +2,7 @@
 
 **Project name:** Omnis Guardian
 
-**Tagline:** An assisted release guardian for real open-source apps: GitLab Duo diagnoses and fixes, CI proves the fix, and a person approves every step.
+**Tagline:** An assisted release guardian for real open-source apps: GitLab Duo diagnoses and fixes, CI proves the fix, and a person approves the plan, the merge and the release.
 
 **Path:** B (Bring Your Own) · **Autonomy level:** Assisted · **Special prize:** Most Stages Covered (Path B)
 
@@ -32,18 +32,20 @@ teams can check it is safe to ship.
 and push a Docker image, no tests, no security scanning, and shipped with 3 critical and 5 high npm
 advisories. On GitLab with Omnis Guardian it has 16 CI jobs across merge request, release and scheduled monitor pipelines, 19 integration and regression
 tests, three scanners behind a fail-closed gate, a Duo flow that diagnoses and fixes on approval,
-proof that every fix works, signed releases a person approves, and a Cloud Run deploy with candidate
+proof that every Duo fix's regression test fails on the old code and passes on the fix, signed releases a person approves, and a Cloud Run deploy with candidate
 testing and automatic rollback. The full table is in the README.
 
 ## What it does
 
 Omnis Guardian wraps **Kutt**, a self-hosted URL shortener with about 10k GitHub stars, in a GitLab
-workflow where a person approves every step.
+workflow where a person approves the plan, the merge and the release, and acts on every incident;
+CI and the canary deploy run automatically between those decisions.
 
 1. **Detect.** Every merge request runs Kutt's integration tests and three scanners: Semgrep with
    Knex-aware rules, GitLab Secret Detection and npm audit. A fail-closed `security_gate` blocks
    critical and high findings.
-2. **Plan, then wait.** When a pipeline fails, GitLab triggers our **Duo Agent Platform flow**. It
+2. **Plan, then wait.** When a merge request's security or test check fails (or the scheduled
+   production monitor fails, see step 7), GitLab triggers our **Duo Agent Platform flow**. It
    reads the failed job logs and the code, posts a diagnosis and fix plan on the merge request, and
    stops.
 3. **Approve.** A maintainer replies `@ai-omnis-guardian-omnis-guardian approve`. The flow checks
@@ -69,8 +71,8 @@ workflow where a person approves every step.
    request or incident from the gate results and job logs, and to name the decision that is still
    the maintainer's. Our group's Duo credits ran out before we recorded a chat session with it, so
    unlike everything else here it has no public run to link.
-9. **Show the evidence.** A Pages dashboard shows every stage from live GitLab data and the
-   pipeline's own artifacts, plus a per-pipeline SCI carbon figure. Nothing on it is simulated.
+9. **Show the evidence.** A Pages dashboard summarizes all nine GitLab stages, each linked to the
+   pipeline, job or merge request behind it, plus a per-pipeline SCI carbon figure. Nothing on it is simulated.
 
 **It caught real problems on day one.** The first pipeline on unmodified upstream Kutt v3.2.6 was
 blocked with **3 critical and 5 high** npm advisories. The upgrade cleared all of them, and every

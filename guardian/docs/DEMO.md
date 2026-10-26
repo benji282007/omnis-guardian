@@ -6,7 +6,7 @@ an AI voice-over is allowed. Use no copyrighted music.
 
 | Time | Show | Say |
 |---|---|---|
-| 0:00–0:15 | Dashboard (Pages) and live Kutt | "Kutt is a popular open-source URL shortener. Omnis Guardian wraps it so a Duo agent does the investigative work after code is written, while a person approves every step." |
+| 0:00–0:15 | Dashboard (Pages) and live Kutt | "Kutt is a popular open-source URL shortener. Omnis Guardian wraps it so a Duo agent does the investigative work after code is written, while a person approves the plan, the merge and the release." |
 | 0:15–0:30 | First `main` pipeline: `security_gate` log listing 3 critical / 5 high npm advisories; then the upgrade MR passing | "On day one, the dependency gate found three critical and five high advisories in upstream Kutt. We fixed them and every test still passes." |
 | 0:30–0:55 | MR "Sort links by any column": tests green, `security_gate` red at the `orderByRaw` line | "A new feature passes its tests but puts request input straight into SQL. The gate blocks it." |
 | 0:55–1:20 | The Duo plan comment on the MR (diagnosis, fix plan, "reply @… approve") | "Our Duo flow read the job log and the code, and posted a diagnosis and a plan. It does nothing until a maintainer approves." |

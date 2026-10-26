@@ -1,9 +1,14 @@
 # Omnis Guardian for Kutt
 
+> **A Duo agent investigates and proposes a fix. CI proves it. A person decides whether it ships.**
+>
+> [Live app on Cloud Run](https://kutt-bda5naktma-uc.a.run.app) · [Evidence dashboard](https://omnis-guardian-af8ca1.gitlab.io) · [Drift-drill incident](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) · Demo video: see the Devpost entry
+
 **An assisted release guardian for a real open-source app.** Omnis Guardian wraps
 [Kutt](https://github.com/thedevs-network/kutt), the self-hosted URL shortener (MIT,
 about 10k GitHub stars), in a GitLab DevSecOps workflow where a GitLab Duo agent does
-the investigative work and **a person approves every step**:
+the investigative work and **a person approves the plan, the merge and the release, and acts on
+every incident**. CI and the canary deploy run automatically between those decisions:
 
 1. **A merge request fails a security or test check.** A Duo Agent Platform flow reads the
    failed job logs and the code, then posts a diagnosis and fix plan on the MR, and waits.
@@ -63,7 +68,7 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 
 - **Kutt on Google Cloud Run:** https://kutt-bda5naktma-uc.a.run.app (deployed by `deploy_production` after an approved release)
 - **Evidence dashboard (GitLab Pages):** https://omnis-guardian-af8ca1.gitlab.io
-- **Releases:** [all releases](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases), each signed with SLSA provenance and approved through `release_gate`.
+- **Releases:** [all releases](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases), each one published only after `verify_signatures` and the approver-checked `release_gate` (signed image + SLSA provenance).
   [guardian-19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-19) was the first deploy; [guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64)
   was the first no-traffic candidate, smoke test and promotion ([pipeline #64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986094858)).
 
