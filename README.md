@@ -12,11 +12,11 @@ every incident**. CI and the canary deploy run automatically between those decis
 
 1. **A merge request fails a security or test check.** A Duo Agent Platform flow reads the
    failed job logs and the code, then posts a diagnosis and fix plan on the MR, and waits.
-2. **A maintainer approves the plan** by replying `@<guardian account> approve`. The flow
+2. **A maintainer approves the plan** by replying `@ai-omnis-guardian-omnis-guardian approve`. The flow
    checks they have Developer access, then opens a fix MR with a regression test.
 3. **CI proves the fix:** `regression_proof` runs the new test against the old code (it must
    fail) and the fix (it must pass). If CI rejects Duo's work, the maintainer can reply
-   `@<guardian account> revise`; the flow reads the CI failures, posts a revision plan and pushes a
+   `@ai-omnis-guardian-omnis-guardian revise`; the flow reads the CI failures, posts a revision plan and pushes a
    corrected commit. **A person reviews and merges.**
 4. **A person approves the release:** the manual `release_gate` checks who started it and
    re-verifies the signed image and its SLSA provenance.
@@ -27,6 +27,49 @@ Built for the GitLab Transcend "Life After Code" hackathon · **Path B (Bring Yo
 **Assisted** autonomy · Google Cloud · MIT. Original project:
 https://github.com/thedevs-network/kutt. What we added is listed in
 [guardian/docs/WHAT-CHANGED.md](guardian/docs/WHAT-CHANGED.md).
+
+## How it works
+
+Rounded nodes are people. Everything else is GitLab CI, the Duo flow or Cloud Run.
+
+```mermaid
+flowchart LR
+  MR[Merge request] --> GATE{Tests and<br/>security gate}
+  GATE -- fails --> PLAN[Duo flow:<br/>diagnosis + plan]
+  PLAN --> A1([Maintainer:<br/>approve])
+  A1 --> FIX[Duo flow: fix MR<br/>+ regression test]
+  FIX --> PROOF{regression_proof:<br/>fails on old code,<br/>passes on fix}
+  PROOF -- fails --> A2([Maintainer:<br/>revise]) --> FIX
+  PROOF -- proven --> A3([Maintainer:<br/>review + merge])
+  GATE -- passes --> A3
+  A3 --> BUILD[Build, sign,<br/>SLSA provenance]
+  BUILD --> A4([Person:<br/>release_gate])
+  A4 --> DEPLOY[Cloud Run: candidate,<br/>smoke, promote,<br/>auto-rollback]
+  DEPLOY --> WATCH[Scheduled monitor:<br/>probes + drift]
+  WATCH -- fails --> INC[Duo flow:<br/>incident + diagnosis]
+  INC --> A5([Person:<br/>acts on it]) --> DEPLOY
+```
+
+## What the agent can and cannot do
+
+| The Duo flow can | The Duo flow cannot |
+|---|---|
+| Read job logs, code, merge requests and issues | Merge, approve, release or deploy (it has no such tools, and its service account has Developer access only) |
+| Post a diagnosis and plan, then stop | Touch production (it has no Google Cloud access; only jobs on the protected `main` branch have it, keylessly: the deploy and the scheduled monitor) |
+| After `approve`: create one `guardian/fix-*` branch, one commit, one MR | Change `.gitlab-ci.yml`, `.gitlab/`, `guardian/` or existing tests (its prompts forbid it, and for a revision the executor refuses any such file before committing) |
+| After `revise`: push one corrective commit to its own fix MR | Count its own work as done: `regression_proof`, `unit_tests` and `security_gate` decide |
+| Open or update an incident issue when a scheduled check fails | Fix an incident: it recommends the action, a person takes it |
+
+**Human gates.** The binding ones are GitLab's own: a person merges the fix MR, a person starts
+`release_gate` (approver allow-list, signatures and provenance re-verified), and a person acts on
+each incident. The `approve` reply before a fix is the first, lighter gate: the flow checks the
+replier's access level, that the plan was posted by the Guardian account and that the branch has not
+moved, and GitLab's composite identity blocks anyone below Developer.
+
+**Why a mention, not `HumanInputComponent`.** This flow is started by
+[triggers](https://docs.gitlab.com/user/duo_agent_platform/triggers/) (a failed pipeline, a mention),
+so it runs under its service account with no person in the session to click an in-session prompt.
+A reply on the merge request keeps the decision where reviewers already work, and leaves an audit trail.
 
 ## Who it's for
 
@@ -71,6 +114,7 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 - **Releases:** [all releases](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases), each one published only after `verify_signatures` and the approver-checked `release_gate` (signed image + SLSA provenance).
   [guardian-19](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-19) was the first deploy; [guardian-64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases/guardian-64)
   was the first no-traffic candidate, smoke test and promotion ([pipeline #64](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986094858)).
+  The newest is always at the top of [Releases](https://gitlab.com/omnis-guardian1/omnis-guardian/-/releases).
 
 ## What happened, with links
 
@@ -136,6 +180,36 @@ bug to find. Everything that happened after it was pushed (scanner, Duo, CI, rev
 
 Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines).
 
+## GitLab Duo Agent Platform: what this project uses
+
+| Feature | Where | Evidence |
+|---|---|---|
+| Custom flow (flow registry v1, planner + executor agents, four modes) | [`.gitlab/duo/flows/omnis-guardian.yml`](.gitlab/duo/flows/omnis-guardian.yml) | [plan on MR !4](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4), [fix MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6), [incident #1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) |
+| Triggers: Pipeline failed, Mention | set up in AI > Triggers ([SETUP.md](guardian/docs/SETUP.md)) | each run is a `duo_workflow` pipeline in [Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines?source=duo_workflow) |
+| Service account and composite identity | the flow's commits and notes are by `@ai-omnis-guardian-omnis-guardian` | [revise commit on MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6) |
+| Custom agent (read-only Release Assistant) | [`.gitlab/duo/agents/release-assistant.yml`](.gitlab/duo/agents/release-assistant.yml) | created and enabled; no recorded chat (Duo credits ran out) |
+| GitLab Duo Code Review on every MR | MR reviews | caught real bugs in [MR !10](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/10) and [MR !13](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/13) |
+| `AGENTS.md` repository rules | [`AGENTS.md`](AGENTS.md) | repository rules for agents working here (smallest fix, allow-lists, a regression test, never touch CI); the flow's prompts encode the same rules |
+| Config validation before GitLab sees it | [`guardian/ci/validate_config.py`](guardian/ci/validate_config.py) in `config_check` | rejects unknown or write tools for the agent, hidden prompt characters, broken routers |
+
+**Next, once Duo credits allow a proving run:** a conditional router on a structured planner output
+(so the executor only runs for an approved plan), a deterministic pre-fetch step for failing jobs,
+the "Merge request approved" trigger as an alternative approval gate, and passing `AGENTS.md` to the
+flow as an input. Each is designed but not shipped, because nothing here ships without a real run.
+
+## Verify locally (2 minutes)
+
+Node 20 or 22, Python 3:
+
+```bash
+npm ci && npm test && npm run test:guardian
+python3 -m venv .venv && .venv/bin/pip install -r guardian/ci/requirements.txt && .venv/bin/python guardian/ci/validate_config.py
+node guardian/dashboard/build.mjs --out public && python3 -m http.server -d public 8080
+```
+
+The dashboard built locally has no CI artifacts, so it shows clear "missing" states; the
+[live one](https://omnis-guardian-af8ca1.gitlab.io) is fed by the `pages` job.
+
 ## Set up and demo
 
 - Setup (GitLab, Duo flow, Google Cloud): [guardian/docs/SETUP.md](guardian/docs/SETUP.md)
@@ -156,11 +230,14 @@ Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipeli
 - Duo's output depends on the model. If it declines or writes a weak fix, the pipeline says so (`regression_proof` fails); it does not pass.
 - The live demo runs Kutt on SQLite inside one Cloud Run instance, so data resets on each release. Production use would point Kutt at Cloud SQL.
 - Provenance is generated by this project's CI and signed with Sigstore; it is not a SLSA Build L3 claim.
+- CI job images are referenced by tag (for example `node:22-alpine`), not by digest. The image that
+  ships is pinned: its base image digest and its own digest are recorded in the signed SLSA provenance.
 - The carbon report covers CI runner time only; LLM inference and Cloud Run runtime are outside its boundary, and its embodied-carbon coefficient is a stated assumption.
 
 ---
 
-*The original Kutt README follows.*
+<details>
+<summary><strong>The original Kutt README (upstream project, unchanged)</strong></summary>
 
 <p align="center"><a href="https://kutt.to" title="kutt.to"><img src="https://raw.githubusercontent.com/thedevs-network/kutt/9d1c873897c3f5b9a1bd0c74dc5d23f2ed01f2ec/static/images/logo-github.png" alt="Kutt.to"></a></p>
 
@@ -423,3 +500,5 @@ Pull requests are welcome. Open a discussion for feedback, requesting features, 
 
 Special thanks to [Thomas](https://github.com/trgwii) and [Muthu](https://github.com/MKRhere). Logo design by [Muthu](https://github.com/MKRhere).
 
+
+</details>

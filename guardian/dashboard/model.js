@@ -159,3 +159,64 @@ export function formatAgo(iso, now = Date.now()) {
   if (s < 86400) return `${Math.round(s / 3600)}h ago`;
   return `${Math.round(s / 86400)}d ago`;
 }
+
+/** Scheduled monitor pipelines (newest first) as a pass/fail timeline. */
+export function summariseMonitorRuns(pipelines = []) {
+  const runs = pipelines.map((p) => ({ id: p.id, status: p.status, tone: toneFor(p.status), at: p.created_at, url: p.web_url }));
+  return {
+    runs,
+    passed: runs.filter((r) => r.status === 'success').length,
+    failed: runs.filter((r) => r.status === 'failed').length
+  };
+}
+
+/** One line for the newest monitor-result.json: config checks and live probes passed. */
+export function summariseMonitorResult(result) {
+  if (!result?.runtime?.checks) return null;
+  const checks = result.runtime.checks;
+  const probes = result.smoke?.probes ?? [];
+  return {
+    ok: result.ok === true,
+    checksPassed: checks.filter((c) => c.ok).length,
+    checksTotal: checks.length,
+    probesPassed: probes.filter((p) => p.ok).length,
+    probesTotal: probes.length,
+    drift: checks.filter((c) => !c.ok).map((c) => `${c.name}: expected ${c.expected}, found ${c.actual}`)
+  };
+}
+
+/**
+ * The incident as a four-step story, built only from real records: the failed scheduled run
+ * that caught it, the issue the Duo flow opened, the first scheduled run that passed after it,
+ * and who closed the issue. `runs` are scheduled pipelines around the incident's time.
+ */
+export function incidentStory(incident, runs = []) {
+  if (!incident) return [];
+  const t = (iso) => Date.parse(iso);
+  const sorted = runs.slice().sort((a, b) => t(a.created_at) - t(b.created_at));
+  const caught = sorted.filter((r) => r.status === 'failed' && t(r.created_at) <= t(incident.openedAt)).pop() ?? null;
+  const passed = caught ? sorted.find((r) => r.status === 'success' && t(r.created_at) > t(caught.created_at)) ?? null : null;
+  return [
+    { key: 'caught', label: 'Drift caught by the scheduled check', at: caught?.created_at ?? null, url: caught?.web_url ?? null, done: !!caught },
+    { key: 'opened', label: `${incident.openedByDuo ? 'Duo flow' : incident.openedBy} opened incident #${incident.iid} with a diagnosis`, at: incident.openedAt, url: incident.url, done: true },
+    { key: 'passed', label: 'The next scheduled check passed', at: passed?.created_at ?? null, url: passed?.web_url ?? null, done: !!passed },
+    { key: 'closed', label: incident.closedAt ? `Closed by ${incident.closedBy ?? 'a person'}` : 'Awaiting a person', at: incident.closedAt, url: incident.url, done: !!incident.closedAt }
+  ];
+}
+
+/** An incident issue, with who opened it (the Duo flow's service account or a person) and who closed it. */
+export function summariseIncident(issue, guardianAccount = null) {
+  const opener = issue.author?.username ?? null;
+  return {
+    iid: issue.iid,
+    title: issue.title,
+    url: issue.web_url,
+    state: issue.state,
+    openedAt: issue.created_at,
+    closedAt: issue.closed_at ?? null,
+    openedBy: issue.author?.name ?? opener,
+    closedBy: issue.closed_by?.name ?? issue.closed_by?.username ?? null,
+    // Exact match only: a prefix would let any similarly named user pass as the flow.
+    openedByDuo: !!guardianAccount && opener === guardianAccount
+  };
+}

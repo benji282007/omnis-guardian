@@ -1,5 +1,5 @@
 // Fixtures sast-*.json were produced by running Semgrep 1.182 with
-// security/semgrep/rules.yml (see scripts/test/fixtures/README.md).
+// guardian/semgrep/rules.yml on guardian/test/fixtures/mini-app.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -30,6 +30,11 @@ test('fails closed on missing, malformed or unsuccessful reports', () => {
   assert.equal(evaluateReports([{ path: 'x.json', report: { foo: 1 } }]).passed, false);
   const failedScan = { vulnerabilities: [], scan: { type: 'sast', status: 'failure' } };
   assert.equal(evaluateReports([{ path: 'x.json', report: failedScan }]).passed, false);
+  // A report that does not say the scan succeeded is not evidence that it did.
+  const noStatus = { vulnerabilities: [] };
+  const r = evaluateReports([{ path: 'x.json', report: noStatus }]);
+  assert.equal(r.passed, false);
+  assert.ok(r.problems.some((p) => /scan status/.test(p)), r.problems.join('; '));
 });
 
 test('medium findings warn but do not block by default', () => {

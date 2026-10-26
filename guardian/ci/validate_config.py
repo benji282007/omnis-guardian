@@ -5,7 +5,7 @@ This catches mistakes before they reach GitLab. It is not a substitute for
 GitLab's own validation: the flow is validated again when it is created in
 AI > Flows, and the pipeline config by GitLab's CI linter.
 
-Usage: python3 scripts/ci/validate_config.py [repo_root]
+Usage: python3 guardian/ci/validate_config.py [repo_root]   (needs pyyaml: pip install -r guardian/ci/requirements.txt)
 """
 import re
 import sys

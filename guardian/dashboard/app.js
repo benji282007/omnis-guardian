@@ -8,10 +8,14 @@ import {
   summariseGuardianMr,
   toneFor,
   shortSha,
-  formatAgo
+  formatAgo,
+  summariseMonitorRuns,
+  summariseMonitorResult,
+  summariseIncident,
+  incidentStory
 } from './model.js';
 
-const REFRESH_MS = 30_000;
+const REFRESH_MS = 120_000; // polite to GitLab's anonymous API limits; paused while the tab is hidden
 const $ = (id) => document.getElementById(id);
 
 function h(tag, attrs = {}, ...children) {
@@ -76,10 +80,21 @@ async function loadLive(config) {
       break;
     }
   }
-  const monitorPipeline = ((await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&per_page=1&order_by=id&sort=desc`))) ?? [])[0] ?? null;
+  // null (not []) when the call fails, so the panel says "unavailable" rather than a clean state it never checked.
+  const monitorRuns = await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&per_page=12&order_by=id&sort=desc`));
+  const monitorPipeline = monitorRuns?.[0] ?? null;
   const monitorJobs = monitorPipeline ? ((await tryJson(api(config, `/pipelines/${monitorPipeline.id}/jobs?per_page=20`))) ?? []).filter((j) => j.name === 'monitor_production') : [];
   const monitor = monitorJobs[0] ? await tryJson(api(config, `/jobs/${monitorJobs[0].id}/artifacts/monitor-result.json`)) : null;
-  return { pipelines, latest, jobs, guardian, releases, deploy, monitorPipeline, monitorJobs, monitor };
+  const rawIncidents = await tryJson(api(config, '/issues?labels=incident&state=all&per_page=5&order_by=created_at&sort=desc'));
+  const incidents = rawIncidents ? rawIncidents.map((i) => summariseIncident(i, config.guardianAccount)) : null;
+  // The scheduled runs around the newest incident, so its story survives as newer runs arrive.
+  let storyRuns = [];
+  if (incidents?.[0]?.openedAt) {
+    const from = new Date(Date.parse(incidents[0].openedAt) - 3 * 3600_000).toISOString();
+    const to = new Date(Date.parse(incidents[0].closedAt ?? new Date().toISOString()) + 3 * 3600_000).toISOString();
+    storyRuns = (await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&updated_after=${from}&updated_before=${to}&per_page=40`))) ?? [];
+  }
+  return { pipelines, latest, jobs, guardian, releases, deploy, monitorPipeline, monitorJobs, monitor, monitorRuns, incidents, storyRuns };
 }
 
 /* ---------------------------------------------------------------- render */
@@ -165,6 +180,58 @@ function renderStages(live, evidence) {
     live?.monitorPipeline
       ? h('span', {}, ' · ', link(live.monitorPipeline.web_url, `live check ${live.monitorPipeline.status} ${formatAgo(live.monitorPipeline.created_at)}`))
       : ''
+  );
+}
+
+// Watch: the scheduled production monitor and the incidents the Duo flow opened from it.
+function renderWatch(live) {
+  const unavailable = h('div', { class: 'empty' }, 'Live GitLab data unavailable; not shown as healthy.');
+  const runsKnown = Array.isArray(live?.monitorRuns);
+  const runs = summariseMonitorRuns(live?.monitorRuns ?? []);
+  const result = summariseMonitorResult(live?.monitor);
+  $('watch-tag').className = `tag ${result ? (result.ok ? 'tag-pass' : 'tag-fail') : ''}`;
+  $('watch-tag').textContent = result ? (result.ok ? 'production matches release' : 'drift or failing probe') : runsKnown ? 'no run yet' : 'unavailable';
+  $('watch-summary').replaceChildren(
+    result
+      ? h('div', { class: 'watch-result' },
+          h('b', {}, `${result.checksPassed}/${result.checksTotal}`), h('span', {}, 'config checks vs the approved release'),
+          h('b', {}, `${result.probesPassed}/${result.probesTotal}`), h('span', {}, 'live user-journey probes'),
+          ...(result.drift.length ? [h('div', { class: 'watch-drift' }, `DRIFT ${result.drift.join(' · ')}`)] : []))
+      : runsKnown && runs.runs.length === 0 ? h('div', { class: 'empty' }, 'No scheduled monitor run yet.') : unavailable
+  );
+  $('watch-runs').replaceChildren(
+    ...runs.runs.slice().reverse().map((r) =>
+      h('a', { class: 'run', dataset: { tone: r.tone }, href: r.url, target: '_blank', rel: 'noopener', title: `${r.status} · ${formatAgo(r.at)}` }, '')
+    )
+  );
+  const newestJob = live?.monitorJobs?.[0];
+  $('watch-runs-meta').replaceChildren(
+    runs.runs.length ? `last ${runs.runs.length} scheduled runs: ${runs.passed} passed, ${runs.failed} failed · newest ${formatAgo(runs.runs[0].at)}` : '',
+    newestJob ? h('span', {}, ' · ', link(newestJob.web_url, 'open the newest monitor job')) : ''
+  );
+  const incidentsKnown = Array.isArray(live?.incidents);
+  const incidents = live?.incidents ?? [];
+  const when = (iso) => (iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'not recorded');
+  $('incident-story').replaceChildren(
+    ...incidentStory(incidents[0], live?.storyRuns ?? []).map((step, n) =>
+      h('li', { class: 'story-step', dataset: { done: String(step.done) } },
+        h('span', { class: 'story-num' }, String(n + 1)),
+        h('div', {},
+          step.url ? link(step.url, step.label, 'story-label') : h('span', { class: 'story-label' }, step.label),
+          h('div', { class: 'mr-meta' }, when(step.at)))))
+  );
+  $('incident-story').hidden = incidents.length === 0;
+  $('incident-list').replaceChildren(
+    ...(incidents.length
+      ? incidents.map((i) =>
+          h('li', { class: 'incident' },
+            h('div', { class: 'incident-head' },
+              h('span', { class: `tag ${i.state === 'closed' ? 'tag-pass' : 'tag-fail'}` }, i.state === 'closed' ? 'resolved' : 'open'),
+              link(i.url, `#${i.iid} ${i.title}`, 'mr-title')),
+            h('div', { class: 'mr-meta' },
+              `opened by ${i.openedByDuo ? 'the Duo flow' : i.openedBy} ${formatAgo(i.openedAt)}` +
+              (i.closedAt ? ` · resolved by ${i.closedBy ?? 'a person'} ${formatAgo(i.closedAt)}` : ' · awaiting a person'))))
+      : [h('li', { class: 'empty' }, incidentsKnown ? 'No incidents. The Duo flow opens one when a scheduled check fails.' : 'Live GitLab data unavailable; incidents not shown.')])
   );
 }
 
@@ -255,9 +322,12 @@ function renderDeploy(live, evidence) {
     : [['Status', live ? 'No deploy_production job has published a result yet.' : 'Live GitLab data is needed.']];
   $('deploy').replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', { class: k === 'Image' || k === 'Revision' || k === 'Previous' ? 'mono' : '' }, v)]));
   const live_ = $('live-link');
-  if (d?.url && d.status === 'deployed') {
-    live_.hidden = false;
+  // Reset on every refresh so a link never outlives the deploy result it came from.
+  live_.hidden = !(d?.url && d.status === 'deployed');
+  $('gate-live').hidden = live_.hidden;
+  if (!live_.hidden) {
     live_.href = d.url;
+    $('gate-live').href = d.url;
   }
   const s = evidence?.smoke;
   if (!s) return $('probes').replaceChildren(h('li', { class: 'empty' }, 'No image smoke result in this build’s evidence.'));
@@ -339,6 +409,7 @@ async function refresh(config, evidence) {
   renderNotice(notes.join(' '));
   renderGate(config, live, evidence);
   renderStages(live, evidence);
+  renderWatch(live);
   renderMrs(live);
   renderProvenance(evidence);
   renderSecurity(evidence);
@@ -352,7 +423,10 @@ async function refresh(config, evidence) {
 async function main() {
   const [config, evidence] = await Promise.all([tryJson('config.json'), tryJson('evidence.json')]);
   await refresh(config, evidence);
-  if (config?.projectId) setInterval(() => refresh(config, evidence), REFRESH_MS);
+  if (config?.projectId) {
+    setInterval(() => { if (!document.hidden) refresh(config, evidence); }, REFRESH_MS);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(config, evidence); });
+  }
 }
 
 main();

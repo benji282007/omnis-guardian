@@ -9,7 +9,11 @@ import {
   isGuardianMr,
   summariseGuardianMr,
   latestJobs,
-  formatAgo
+  formatAgo,
+  summariseMonitorRuns,
+  summariseMonitorResult,
+  summariseIncident,
+  incidentStory
 } from '../model.js';
 
 const job = (id, name, status, extra = {}) => ({ id, name, status, web_url: `https://gitlab.example/-/jobs/${id}`, ...extra });
@@ -105,4 +109,63 @@ test('configure shows live drift from the monitor result', () => {
   const drifted = configure({ checks: [{ name: 'max instances', ok: false }, { name: 'cpu', ok: true }] });
   assert.equal(drifted.status, 'failed');
   assert.match(drifted.detail, /drift: max instances/);
+});
+
+test('monitor runs become a pass/fail timeline', () => {
+  const s = summariseMonitorRuns([
+    { id: 3, status: 'success', created_at: '2026-10-26T06:35:00Z', web_url: 'u3' },
+    { id: 2, status: 'failed', created_at: '2026-10-25T14:07:00Z', web_url: 'u2' }
+  ]);
+  assert.equal(s.passed, 1);
+  assert.equal(s.failed, 1);
+  assert.deepEqual(s.runs.map((r) => r.tone), ['pass', 'fail']);
+});
+
+test('the newest monitor result is summarised, drift spelled out', () => {
+  const r = summariseMonitorResult({
+    ok: false,
+    runtime: { checks: [{ name: 'cpu', ok: true }, { name: 'max instances', ok: false, expected: '1', actual: '2' }] },
+    smoke: { probes: [{ ok: true }, { ok: true }] }
+  });
+  assert.equal(r.checksPassed, 1);
+  assert.equal(r.checksTotal, 2);
+  assert.equal(r.probesPassed, 2);
+  assert.deepEqual(r.drift, ['max instances: expected 1, found 2']);
+  assert.equal(summariseMonitorResult(null), null);
+});
+
+test('an incident records whether the Duo flow opened it and who closed it', () => {
+  const i = summariseIncident({
+    iid: 1, title: 'Omnis Guardian incident: drift', web_url: 'w', state: 'closed',
+    created_at: '2026-10-25T14:09:46Z', closed_at: '2026-10-25T14:19:56Z',
+    author: { username: 'ai-omnis-guardian-omnis-guardian', name: 'Omnis Guardian' },
+    closed_by: { username: 'fl4sh28', name: 'Benjamin Chacko' }
+  }, 'ai-omnis-guardian-omnis-guardian');
+  assert.equal(i.openedByDuo, true);
+  assert.equal(i.closedBy, 'Benjamin Chacko');
+  assert.equal(summariseIncident({ iid: 2, author: { username: 'someone' } }, 'ai-omnis-guardian-omnis-guardian').openedByDuo, false);
+  // A look-alike name must not pass as the flow, and without a configured account nothing does.
+  assert.equal(summariseIncident({ iid: 3, author: { username: 'ai-omnis-guardian-omnis-guardian-fake' } }, 'ai-omnis-guardian-omnis-guardian').openedByDuo, false);
+  assert.equal(summariseIncident({ iid: 4, author: { username: 'ai-omnis-guardian-omnis-guardian' } }).openedByDuo, false);
+});
+
+test('the incident story is built from the real runs around it', () => {
+  const incident = { iid: 1, url: 'i', openedByDuo: true, openedAt: '2026-10-25T14:09:46Z', closedAt: '2026-10-25T14:19:56Z', closedBy: 'Benjamin Chacko' };
+  const runs = [
+    { status: 'success', created_at: '2026-10-25T14:16:13Z', web_url: 'pass' },
+    { status: 'failed', created_at: '2026-10-25T14:07:42Z', web_url: 'fail' },
+    { status: 'success', created_at: '2026-10-25T14:00:58Z', web_url: 'before' }
+  ];
+  const s = incidentStory(incident, runs);
+  assert.deepEqual(s.map((x) => x.url), ['fail', 'i', 'pass', 'i']);
+  assert.ok(s.every((x) => x.done));
+  assert.match(s[1].label, /Duo flow opened incident #1/);
+  assert.match(s[3].label, /Closed by Benjamin Chacko/);
+});
+
+test('a story with missing records says so instead of guessing', () => {
+  const s = incidentStory({ iid: 2, url: 'i', openedByDuo: true, openedAt: '2026-10-25T14:09:46Z', closedAt: null }, []);
+  assert.equal(s[0].done, false);
+  assert.equal(s[2].done, false);
+  assert.match(s[3].label, /Awaiting a person/);
 });
