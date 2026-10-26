@@ -63,7 +63,7 @@ testing and automatic rollback. The full table is in the README.
 
 ## What it does
 
-Omnis Guardian wraps **Kutt**, a self-hosted URL shortener with about 10k GitHub stars, in a GitLab
+Omnis Guardian wraps **Kutt**, a self-hosted URL shortener with about 11k GitHub stars, in a GitLab
 workflow where a person approves the plan, the merge and the release, and acts on every incident;
 CI and the canary deploy run automatically between those decisions.
 

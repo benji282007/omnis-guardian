@@ -6,7 +6,7 @@
 
 **An assisted release guardian for a real open-source app.** Omnis Guardian wraps
 [Kutt](https://github.com/thedevs-network/kutt), the self-hosted URL shortener (MIT,
-about 10k GitHub stars), in a GitLab DevSecOps workflow where a GitLab Duo agent does
+about 11k GitHub stars), in a GitLab DevSecOps workflow where a GitLab Duo agent does
 the investigative work and **a person approves the plan, the merge and the release, and acts on
 every incident**. CI and the canary deploy run automatically between those decisions:
 
