@@ -32,7 +32,7 @@ teams can check it is safe to ship.
 and push a Docker image, no tests, no security scanning, and shipped with 3 critical and 5 high npm
 advisories. On GitLab with Omnis Guardian it has 16 CI jobs across merge request, release and scheduled monitor pipelines, 19 integration and regression
 tests, three scanners behind a fail-closed gate, a Duo flow that diagnoses and fixes on approval,
-proof that every Duo fix fails on the old code and passes on the fix, signed releases a person approves, and a Cloud Run deploy with candidate
+proof that every Duo fix's regression test fails on the old code and passes on the fix, signed releases a person approves, and a Cloud Run deploy with candidate
 testing and automatic rollback. The full table is in the README.
 
 ## What it does
