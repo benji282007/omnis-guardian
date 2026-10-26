@@ -32,7 +32,7 @@ incident with the fix, which a person applied. Every step below links to the rea
 | Secure | Semgrep (Knex-aware rules), Secret Detection, npm audit, fail-closed gate | [feature blocked](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830) |
 | Package | Image built, booted and smoke-tested; signed with SLSA provenance | [pipeline #96](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986648931) |
 | Release | A person starts the approver-checked `release_gate` | [release_gate](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104756) |
-| Configure | Runtime settings as code, drift-checked every two hours | [DRIFT caught](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448852788) |
+| Configure | Runtime settings as code, drift-checked every four hours | [DRIFT caught](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448852788) |
 | Monitor | Canary deploy, promote, auto-rollback; scheduled live probes | [candidate → promoted](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104758) |
 | Govern | Signatures and provenance re-verified before release; SCI carbon per pipeline | [provenance docs](https://gitlab.com/omnis-guardian1/omnis-guardian/-/blob/main/guardian/docs/PROVENANCE.md) |
 
@@ -87,7 +87,7 @@ CI and the canary deploy run automatically between those decisions.
    **Cloud Run**: a no-traffic candidate is smoke-tested, promoted, re-checked, and rolled back
    automatically if production fails. Google Cloud access is keyless (GitLab OIDC → Workload
    Identity Federation, trusted only for this project's protected `main`).
-7. **Watch production.** Every two hours a scheduled pipeline re-runs the live probes and checks for
+7. **Watch production.** Every four hours a scheduled pipeline re-runs the live probes and checks for
    configuration drift: Cloud Run must serve the last approved digest with exactly the settings in
    `runtime-config.json`. A failure triggers the same Duo flow, which reads the logs and opens an
    **incident issue** with a diagnosis and a recommended action. It never touches production; a
@@ -105,6 +105,23 @@ CI and the canary deploy run automatically between those decisions.
 blocked with **3 critical and 5 high** npm advisories. The upgrade cleared all of them, and every
 Kutt test still passed. Two moderate advisories remain (`uuid` through Bull); the only fix is a
 Bull downgrade, so they stay reported in the pipeline rather than hidden.
+
+## Sustainability (modelled, CI runner time only)
+
+Figures from `guardian/ci/carbon-report.mjs` (Green Software Foundation SCI, `(E × I + M)` per
+pipeline; CCF coefficients, assumptions listed in the report), applied to recorded job durations:
+
+| Pipeline | Jobs | Runner time | Estimated SCI |
+|---|---:|---:|---:|
+| Full release ([guardian-96](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986648931)) | 14 | 387 s | 0.68 gCO₂e |
+| Merge request (no image build or release) | 7–10 | 157–251 s | 0.27–0.44 gCO₂e |
+| Scheduled production check (`monitor_production` only) | 1 | 66 s | 0.11 gCO₂e (mean of 12 runs) |
+
+Two design choices keep the recurring cost small. The production check runs one job instead of the
+full pipeline, about 84% less per check. It runs every four hours rather than every two, which
+halves monitoring to about 0.23 kgCO₂e a year. The boundary is GitLab hosted-runner CI only:
+Duo inference, Cloud Run runtime and networking are outside it. These are modelled estimates, not
+metered measurements, and we claim no emissions reduction beyond these design choices.
 
 ## How we built it
 
