@@ -159,3 +159,44 @@ export function formatAgo(iso, now = Date.now()) {
   if (s < 86400) return `${Math.round(s / 3600)}h ago`;
   return `${Math.round(s / 86400)}d ago`;
 }
+
+/** Scheduled monitor pipelines (newest first) as a pass/fail timeline. */
+export function summariseMonitorRuns(pipelines = []) {
+  const runs = pipelines.map((p) => ({ id: p.id, status: p.status, tone: toneFor(p.status), at: p.created_at, url: p.web_url }));
+  return {
+    runs,
+    passed: runs.filter((r) => r.status === 'success').length,
+    failed: runs.filter((r) => r.status === 'failed').length
+  };
+}
+
+/** One line for the newest monitor-result.json: config checks and live probes passed. */
+export function summariseMonitorResult(result) {
+  if (!result?.runtime?.checks) return null;
+  const checks = result.runtime.checks;
+  const probes = result.smoke?.probes ?? [];
+  return {
+    ok: result.ok === true,
+    checksPassed: checks.filter((c) => c.ok).length,
+    checksTotal: checks.length,
+    probesPassed: probes.filter((p) => p.ok).length,
+    probesTotal: probes.length,
+    drift: checks.filter((c) => !c.ok).map((c) => `${c.name}: expected ${c.expected}, found ${c.actual}`)
+  };
+}
+
+/** An incident issue, with who opened it (the Duo flow's service account or a person) and who closed it. */
+export function summariseIncident(issue, guardianPrefix = 'ai-omnis-guardian') {
+  const opener = issue.author?.username ?? null;
+  return {
+    iid: issue.iid,
+    title: issue.title,
+    url: issue.web_url,
+    state: issue.state,
+    openedAt: issue.created_at,
+    closedAt: issue.closed_at ?? null,
+    openedBy: issue.author?.name ?? opener,
+    closedBy: issue.closed_by?.name ?? issue.closed_by?.username ?? null,
+    openedByDuo: typeof opener === 'string' && opener.startsWith(guardianPrefix)
+  };
+}

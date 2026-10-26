@@ -8,7 +8,10 @@ import {
   summariseGuardianMr,
   toneFor,
   shortSha,
-  formatAgo
+  formatAgo,
+  summariseMonitorRuns,
+  summariseMonitorResult,
+  summariseIncident
 } from './model.js';
 
 const REFRESH_MS = 30_000;
@@ -76,10 +79,12 @@ async function loadLive(config) {
       break;
     }
   }
-  const monitorPipeline = ((await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&per_page=1&order_by=id&sort=desc`))) ?? [])[0] ?? null;
+  const monitorRuns = (await tryJson(api(config, `/pipelines?ref=${encodeURIComponent(config.defaultBranch)}&source=schedule&per_page=12&order_by=id&sort=desc`))) ?? [];
+  const monitorPipeline = monitorRuns[0] ?? null;
   const monitorJobs = monitorPipeline ? ((await tryJson(api(config, `/pipelines/${monitorPipeline.id}/jobs?per_page=20`))) ?? []).filter((j) => j.name === 'monitor_production') : [];
   const monitor = monitorJobs[0] ? await tryJson(api(config, `/jobs/${monitorJobs[0].id}/artifacts/monitor-result.json`)) : null;
-  return { pipelines, latest, jobs, guardian, releases, deploy, monitorPipeline, monitorJobs, monitor };
+  const incidents = ((await tryJson(api(config, '/issues?labels=incident&state=all&per_page=5&order_by=created_at&sort=desc'))) ?? []).map((i) => summariseIncident(i));
+  return { pipelines, latest, jobs, guardian, releases, deploy, monitorPipeline, monitorJobs, monitor, monitorRuns, incidents };
 }
 
 /* ---------------------------------------------------------------- render */
@@ -165,6 +170,43 @@ function renderStages(live, evidence) {
     live?.monitorPipeline
       ? h('span', {}, ' · ', link(live.monitorPipeline.web_url, `live check ${live.monitorPipeline.status} ${formatAgo(live.monitorPipeline.created_at)}`))
       : ''
+  );
+}
+
+// Watch: the scheduled production monitor and the incidents the Duo flow opened from it.
+function renderWatch(live) {
+  const runs = summariseMonitorRuns(live?.monitorRuns ?? []);
+  const result = summariseMonitorResult(live?.monitor);
+  $('watch-tag').className = `tag ${result ? (result.ok ? 'tag-pass' : 'tag-fail') : ''}`;
+  $('watch-tag').textContent = result ? (result.ok ? 'production matches release' : 'drift or failing probe') : 'no run yet';
+  $('watch-summary').replaceChildren(
+    result
+      ? h('div', { class: 'watch-result' },
+          h('b', {}, `${result.checksPassed}/${result.checksTotal}`), h('span', {}, 'config checks vs the approved release'),
+          h('b', {}, `${result.probesPassed}/${result.probesTotal}`), h('span', {}, 'live user-journey probes'),
+          ...(result.drift.length ? [h('div', { class: 'watch-drift' }, `DRIFT ${result.drift.join(' · ')}`)] : []))
+      : h('div', { class: 'empty' }, 'No scheduled monitor run yet.')
+  );
+  $('watch-runs').replaceChildren(
+    ...runs.runs.slice().reverse().map((r) =>
+      h('a', { class: 'run', dataset: { tone: r.tone }, href: r.url, target: '_blank', rel: 'noopener', title: `${r.status} · ${formatAgo(r.at)}` }, '')
+    )
+  );
+  $('watch-runs-meta').textContent = runs.runs.length
+    ? `last ${runs.runs.length} scheduled runs: ${runs.passed} passed, ${runs.failed} failed · newest ${formatAgo(runs.runs[0].at)}`
+    : '';
+  const incidents = live?.incidents ?? [];
+  $('incident-list').replaceChildren(
+    ...(incidents.length
+      ? incidents.map((i) =>
+          h('li', { class: 'incident' },
+            h('div', { class: 'incident-head' },
+              h('span', { class: `tag ${i.state === 'closed' ? 'tag-pass' : 'tag-fail'}` }, i.state === 'closed' ? 'resolved' : 'open'),
+              link(i.url, `#${i.iid} ${i.title}`, 'mr-title')),
+            h('div', { class: 'mr-meta' },
+              `opened by ${i.openedByDuo ? 'the Duo flow' : i.openedBy} ${formatAgo(i.openedAt)}` +
+              (i.closedAt ? ` · resolved by ${i.closedBy ?? 'a person'} ${formatAgo(i.closedAt)}` : ' · awaiting a person'))))
+      : [h('li', { class: 'empty' }, 'No incidents. The Duo flow opens one when a scheduled check fails.')])
   );
 }
 
@@ -339,6 +381,7 @@ async function refresh(config, evidence) {
   renderNotice(notes.join(' '));
   renderGate(config, live, evidence);
   renderStages(live, evidence);
+  renderWatch(live);
   renderMrs(live);
   renderProvenance(evidence);
   renderSecurity(evidence);

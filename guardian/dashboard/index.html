@@ -18,11 +18,11 @@
       <img class="brand-mark" src="favicon.svg" alt="" width="36" height="36">
       <div>
         <div class="brand-name">Omnis Guardian</div>
-        <div class="brand-sub">Assisted release guardian for <a href="https://github.com/thedevs-network/kutt" target="_blank" rel="noopener">Kutt</a> · GitLab Duo Agent Platform</div>
+        <div class="brand-sub">A Duo agent investigates and proposes a fix. CI proves it. A person decides whether it ships. · <a href="https://github.com/thedevs-network/kutt" target="_blank" rel="noopener">Kutt</a> on GitLab + Cloud Run</div>
       </div>
     </div>
     <div class="topbar-pills">
-      <span class="pill" title="A person approves every step: the fix plan, the fix (by merging) and the release.">Autonomy <strong>Assisted</strong></span>
+      <span class="pill" title="A person approves the plan, the merge and the release, and acts on every incident. CI and the canary deploy run automatically.">Autonomy <strong>Assisted</strong></span>
       <a class="pill" id="live-link" href="#" target="_blank" rel="noopener" hidden>Live Kutt <strong>↗</strong></a>
       <a class="pill" id="project-link" href="#" target="_blank" rel="noopener">Project <strong id="project-name">—</strong></a>
       <span class="pill" id="freshness"><span class="dot dot-idle"></span><span id="freshness-text">Loading…</span></span>
@@ -46,10 +46,33 @@
 
     <section aria-labelledby="lifecycle-title">
       <div class="section-head">
-        <h2 id="lifecycle-title">Lifecycle</h2>
+        <h2 id="lifecycle-title">Lifecycle · all 9 GitLab stages</h2>
         <span class="muted small" id="lifecycle-meta"></span>
       </div>
       <ol class="stages" id="stages"></ol>
+    </section>
+
+    <section class="card watch" aria-labelledby="watch-title">
+      <div class="card-head">
+        <h2 id="watch-title">Watch · production monitor and incidents</h2>
+        <span class="tag" id="watch-tag">—</span>
+      </div>
+      <p class="muted small">Every two hours a scheduled pipeline re-runs the live probes and checks that Cloud Run serves
+        exactly the approved digest with the declared settings. A failure triggers the Duo flow, which opens an incident
+        with a diagnosis and waits for a person. It never changes production.</p>
+      <div class="watch-grid">
+        <div>
+          <div class="subhead">Newest scheduled check</div>
+          <div id="watch-summary"><div class="skeleton"></div></div>
+          <div class="subhead">Scheduled runs (oldest → newest)</div>
+          <div class="runs" id="watch-runs"></div>
+          <div class="muted small" id="watch-runs-meta"></div>
+        </div>
+        <div>
+          <div class="subhead">Incidents opened by the Duo flow</div>
+          <ul class="mr-list" id="incident-list"><li><div class="skeleton"></div></li></ul>
+        </div>
+      </div>
     </section>
 
     <div class="grid-2">

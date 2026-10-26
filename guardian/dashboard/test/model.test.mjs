@@ -9,7 +9,10 @@ import {
   isGuardianMr,
   summariseGuardianMr,
   latestJobs,
-  formatAgo
+  formatAgo,
+  summariseMonitorRuns,
+  summariseMonitorResult,
+  summariseIncident
 } from '../model.js';
 
 const job = (id, name, status, extra = {}) => ({ id, name, status, web_url: `https://gitlab.example/-/jobs/${id}`, ...extra });
@@ -105,4 +108,39 @@ test('configure shows live drift from the monitor result', () => {
   const drifted = configure({ checks: [{ name: 'max instances', ok: false }, { name: 'cpu', ok: true }] });
   assert.equal(drifted.status, 'failed');
   assert.match(drifted.detail, /drift: max instances/);
+});
+
+test('monitor runs become a pass/fail timeline', () => {
+  const s = summariseMonitorRuns([
+    { id: 3, status: 'success', created_at: '2026-10-26T06:35:00Z', web_url: 'u3' },
+    { id: 2, status: 'failed', created_at: '2026-10-25T14:07:00Z', web_url: 'u2' }
+  ]);
+  assert.equal(s.passed, 1);
+  assert.equal(s.failed, 1);
+  assert.deepEqual(s.runs.map((r) => r.tone), ['pass', 'fail']);
+});
+
+test('the newest monitor result is summarised, drift spelled out', () => {
+  const r = summariseMonitorResult({
+    ok: false,
+    runtime: { checks: [{ name: 'cpu', ok: true }, { name: 'max instances', ok: false, expected: '1', actual: '2' }] },
+    smoke: { probes: [{ ok: true }, { ok: true }] }
+  });
+  assert.equal(r.checksPassed, 1);
+  assert.equal(r.checksTotal, 2);
+  assert.equal(r.probesPassed, 2);
+  assert.deepEqual(r.drift, ['max instances: expected 1, found 2']);
+  assert.equal(summariseMonitorResult(null), null);
+});
+
+test('an incident records whether the Duo flow opened it and who closed it', () => {
+  const i = summariseIncident({
+    iid: 1, title: 'Omnis Guardian incident: drift', web_url: 'w', state: 'closed',
+    created_at: '2026-10-25T14:09:46Z', closed_at: '2026-10-25T14:19:56Z',
+    author: { username: 'ai-omnis-guardian-omnis-guardian', name: 'Omnis Guardian' },
+    closed_by: { username: 'fl4sh28', name: 'Benjamin Chacko' }
+  });
+  assert.equal(i.openedByDuo, true);
+  assert.equal(i.closedBy, 'Benjamin Chacko');
+  assert.equal(summariseIncident({ iid: 2, author: { username: 'someone' } }).openedByDuo, false);
 });
