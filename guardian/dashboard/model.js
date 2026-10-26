@@ -199,13 +199,13 @@ export function incidentStory(incident, runs = []) {
   return [
     { key: 'caught', label: 'Drift caught by the scheduled check', at: caught?.created_at ?? null, url: caught?.web_url ?? null, done: !!caught },
     { key: 'opened', label: `${incident.openedByDuo ? 'Duo flow' : incident.openedBy} opened incident #${incident.iid} with a diagnosis`, at: incident.openedAt, url: incident.url, done: true },
-    { key: 'passed', label: 'A person redeployed the approved release; the next check passed', at: passed?.created_at ?? null, url: passed?.web_url ?? null, done: !!passed },
+    { key: 'passed', label: 'The next scheduled check passed', at: passed?.created_at ?? null, url: passed?.web_url ?? null, done: !!passed },
     { key: 'closed', label: incident.closedAt ? `Closed by ${incident.closedBy ?? 'a person'}` : 'Awaiting a person', at: incident.closedAt, url: incident.url, done: !!incident.closedAt }
   ];
 }
 
 /** An incident issue, with who opened it (the Duo flow's service account or a person) and who closed it. */
-export function summariseIncident(issue, guardianPrefix = 'ai-omnis-guardian') {
+export function summariseIncident(issue, guardianAccount = null) {
   const opener = issue.author?.username ?? null;
   return {
     iid: issue.iid,
@@ -216,6 +216,7 @@ export function summariseIncident(issue, guardianPrefix = 'ai-omnis-guardian') {
     closedAt: issue.closed_at ?? null,
     openedBy: issue.author?.name ?? opener,
     closedBy: issue.closed_by?.name ?? issue.closed_by?.username ?? null,
-    openedByDuo: typeof opener === 'string' && opener.startsWith(guardianPrefix)
+    // Exact match only: a prefix would let any similarly named user pass as the flow.
+    openedByDuo: !!guardianAccount && opener === guardianAccount
   };
 }

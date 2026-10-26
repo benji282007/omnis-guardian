@@ -140,10 +140,13 @@ test('an incident records whether the Duo flow opened it and who closed it', () 
     created_at: '2026-10-25T14:09:46Z', closed_at: '2026-10-25T14:19:56Z',
     author: { username: 'ai-omnis-guardian-omnis-guardian', name: 'Omnis Guardian' },
     closed_by: { username: 'fl4sh28', name: 'Benjamin Chacko' }
-  });
+  }, 'ai-omnis-guardian-omnis-guardian');
   assert.equal(i.openedByDuo, true);
   assert.equal(i.closedBy, 'Benjamin Chacko');
-  assert.equal(summariseIncident({ iid: 2, author: { username: 'someone' } }).openedByDuo, false);
+  assert.equal(summariseIncident({ iid: 2, author: { username: 'someone' } }, 'ai-omnis-guardian-omnis-guardian').openedByDuo, false);
+  // A look-alike name must not pass as the flow, and without a configured account nothing does.
+  assert.equal(summariseIncident({ iid: 3, author: { username: 'ai-omnis-guardian-omnis-guardian-fake' } }, 'ai-omnis-guardian-omnis-guardian').openedByDuo, false);
+  assert.equal(summariseIncident({ iid: 4, author: { username: 'ai-omnis-guardian-omnis-guardian' } }).openedByDuo, false);
 });
 
 test('the incident story is built from the real runs around it', () => {

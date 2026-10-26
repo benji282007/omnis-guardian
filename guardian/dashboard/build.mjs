@@ -54,6 +54,8 @@ const config = {
   projectUrl: env.CI_PROJECT_URL ?? null,
   apiUrl: env.CI_API_V4_URL ?? null,
   defaultBranch: env.CI_DEFAULT_BRANCH ?? 'main',
+  // Exact username of the Duo flow's service account, used to attribute incidents (no prefix match).
+  guardianAccount: env.GUARDIAN_ACCOUNT ?? 'ai-omnis-guardian-omnis-guardian',
   upstream: 'https://github.com/thedevs-network/kutt'
 };
 
