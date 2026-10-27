@@ -12,7 +12,7 @@
 - Deployed project (Google Cloud Run): https://kutt-bda5naktma-uc.a.run.app
 - Evidence dashboard: https://omnis-guardian-af8ca1.gitlab.io
 - What changed (Path B): https://gitlab.com/omnis-guardian1/omnis-guardian/-/blob/main/guardian/docs/WHAT-CHANGED.md
-- Video: [YouTube link]
+- Video: https://youtu.be/qkRlhsLogSE
 
 ---
 

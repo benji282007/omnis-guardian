@@ -2,7 +2,7 @@
 
 > **A Duo agent investigates and proposes a fix. CI proves it. A person decides whether it ships.**
 >
-> [Live app on Cloud Run](https://kutt-bda5naktma-uc.a.run.app) · [Evidence dashboard](https://omnis-guardian-af8ca1.gitlab.io) · [Drift-drill incident](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) · Demo video: see the Devpost entry
+> [Live app on Cloud Run](https://kutt-bda5naktma-uc.a.run.app) · [Evidence dashboard](https://omnis-guardian-af8ca1.gitlab.io) · [Drift-drill incident](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) · [Demo video (2:45)](https://youtu.be/qkRlhsLogSE)
 
 **An assisted release guardian for a real open-source app.** Omnis Guardian wraps
 [Kutt](https://github.com/thedevs-network/kutt), the self-hosted URL shortener (MIT,
