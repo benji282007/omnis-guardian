@@ -31,7 +31,7 @@ incident with a diagnosis and the recommended fix, which a person applied. Every
 | Verify | Integration tests, and regression proof against the old code and the fix | [PROVEN](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17445549698) |
 | Secure | Semgrep (Knex-aware rules), Secret Detection, npm audit, fail-closed gate | [feature blocked](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830) |
 | Package | Image built, booted and smoke-tested; signed with SLSA provenance | [pipeline #96](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986648931) |
-| Release | A person starts the approver-checked `release_gate` | [release_gate](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104756) |
+| Release | A second person starts the approver-checked `release_gate`; four-eyes blocks the commit's author | [four-eyes release_gate](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17461529131) |
 | Configure | Runtime settings as code, drift-checked every four hours | [DRIFT caught](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448852788) |
 | Monitor | Canary deploy, promote, auto-rollback; scheduled live probes | [candidate → promoted](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104758) |
 | Govern | Signatures and provenance re-verified before release; SCI carbon per pipeline | [provenance docs](https://gitlab.com/omnis-guardian1/omnis-guardian/-/blob/main/guardian/docs/PROVENANCE.md) |
@@ -81,8 +81,8 @@ CI and the canary deploy run automatically between those decisions.
    reply `revise`, and the flow reads the CI failures and pushes a corrected commit.
 5. **Release.** On `main`, the image is built, booted and smoke-tested, then signed with **Sigstore
    keyless signing** along with a signed **SLSA v1 provenance attestation** for its exact digest. A
-   person starts `release_gate`, which checks they are an allowed approver and re-verifies the
-   signatures against the registry.
+   person starts `release_gate`, which checks they are an allowed approver who did not author the
+   commit (four-eyes) and re-verifies the signatures against the registry.
 6. **Deploy safely.** The signed image is copied **by digest** to Artifact Registry and deployed to
    **Cloud Run**: a no-traffic candidate is smoke-tested, promoted, re-checked, and rolled back
    automatically if production fails. Google Cloud access is keyless (GitLab OIDC → Workload

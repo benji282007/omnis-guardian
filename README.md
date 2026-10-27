@@ -196,6 +196,9 @@ bug to find. Everything that happened after it was pushed (scanner, Duo, CI, rev
     exact deploy job to retry. A person retried it ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448889191)): candidate, smoke test,
     promoted the approved digest with the declared settings. The next run passed
     ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448928237)) and the person closed the incident. Duo never touched production.
+14. **Four-eyes release (pipeline #125).** With `RELEASE_REQUIRE_FOUR_EYES=true`, the maintainer merged and a
+    second person, `jonabram123`, started `release_gate`. The gate checked they are on the approver list and are not
+    the commit author, then re-verified the signatures ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17461529131)).
 
 Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines).
 
@@ -237,9 +240,6 @@ The dashboard built locally has no CI artifacts, so it shows clear "missing" sta
 
 ## Limitations
 
-- Single-maintainer project: the release gate's four-eyes rule (approver must not be the commit
-  author) is supported but switched off with `RELEASE_REQUIRE_FOUR_EYES=false`, and every release
-  records that in `release-evidence.json`. A team would turn it on.
 - The flow's token may not read project membership (HTTP 403 `insufficient_scope`). In that one
   case it relies on GitLab's composite identity, which blocks branch and commit creation for anyone
   below Developer; a 404, a low access level or any other error refuses.

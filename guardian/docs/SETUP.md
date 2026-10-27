@@ -37,7 +37,7 @@ project, and a Google Cloud project with billing.
 | Key | Value |
 |---|---|
 | `RELEASE_APPROVERS` | your GitLab username (comma-separate several) |
-| `RELEASE_REQUIRE_FOUR_EYES` | `false` only if you are the sole maintainer |
+| `RELEASE_REQUIRE_FOUR_EYES` | `true` (default); `false` only if you are the sole maintainer |
 | `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_DEPLOYER_SA`, `GCP_RUNTIME_SA` | printed by step 3 |
 
 Make sure `main` is a protected branch (it is by default); Google Cloud only trusts
