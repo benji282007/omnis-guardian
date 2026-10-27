@@ -1,5 +1,5 @@
 #!/bin/sh
-# Scheduled production check (every two hours) (scheduled `monitor_production` job, google/cloud-sdk:slim):
+# Scheduled production check (every four hours) (scheduled `monitor_production` job, google/cloud-sdk:slim):
 #   1. keyless Google Cloud login (same as deploy)
 #   2. read the live Cloud Run service and its serving revision
 #   3. fetch deploy-result.json from the last successful, approved deploy_production job

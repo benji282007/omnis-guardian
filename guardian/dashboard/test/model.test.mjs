@@ -92,7 +92,7 @@ test('latestJobs and formatAgo', () => {
   assert.equal(formatAgo(null, now), '—');
 });
 
-test('monitor combines the deploy with the latest hourly live check', () => {
+test('monitor combines the deploy with the latest scheduled live check', () => {
   const jobs = [job(1, 'deploy_production', 'success'), job(2, 'monitor_production', 'failed')];
   const monitor = mapStages({ jobs, pipeline: {} }).find((s) => s.key === 'monitor');
   assert.equal(monitor.status, 'failed');

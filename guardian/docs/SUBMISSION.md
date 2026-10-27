@@ -4,7 +4,7 @@
 
 **Tagline:** An assisted release guardian for real open-source apps: GitLab Duo diagnoses and fixes, CI proves the fix, and a person approves the plan, the merge and the release.
 
-**Path:** B (Bring Your Own) · **Autonomy level:** Assisted · **Special prize:** Most Stages Covered (Path B)
+**Path:** B (Bring Your Own) · **Autonomy level:** Assisted · **Special prizes:** Most Stages Covered (Path B), and opted in to Most Environmentally Impactful (see Sustainability)
 
 **Links**
 - Repository: https://gitlab.com/omnis-guardian1/omnis-guardian
@@ -12,7 +12,7 @@
 - Deployed project (Google Cloud Run): https://kutt-bda5naktma-uc.a.run.app
 - Evidence dashboard: https://omnis-guardian-af8ca1.gitlab.io
 - What changed (Path B): https://gitlab.com/omnis-guardian1/omnis-guardian/-/blob/main/guardian/docs/WHAT-CHANGED.md
-- Video: [YouTube link]
+- Video: https://youtu.be/qkRlhsLogSE
 
 ---
 
@@ -22,7 +22,7 @@ A GitLab Duo flow investigates failures in a real open-source app and proposes a
 A maintainer approves. CI decides whether the fix is real: the new test must fail on the old code and
 pass on the fix. A person releases, Cloud Run deploys a tested candidate, and a scheduled monitor keeps
 checking production. When we changed production by hand, it caught the drift and Duo opened an
-incident with the fix, which a person applied. Every step below links to the real run.
+incident with a diagnosis and the recommended fix, which a person applied. Every step below links to the real run.
 
 | GitLab DevSecOps stage | What runs | Evidence |
 |---|---|---|
@@ -31,12 +31,12 @@ incident with the fix, which a person applied. Every step below links to the rea
 | Verify | Integration tests, and regression proof against the old code and the fix | [PROVEN](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17445549698) |
 | Secure | Semgrep (Knex-aware rules), Secret Detection, npm audit, fail-closed gate | [feature blocked](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830) |
 | Package | Image built, booted and smoke-tested; signed with SLSA provenance | [pipeline #96](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986648931) |
-| Release | A person starts the approver-checked `release_gate` | [release_gate](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104756) |
-| Configure | Runtime settings as code, drift-checked every two hours | [DRIFT caught](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448852788) |
+| Release | A second person starts the approver-checked `release_gate`; four-eyes blocks the commit's author | [four-eyes release_gate](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17461529131) |
+| Configure | Runtime settings as code, drift-checked every four hours | [DRIFT caught](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448852788) |
 | Monitor | Canary deploy, promote, auto-rollback; scheduled live probes | [candidate → promoted](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17449104758) |
 | Govern | Signatures and provenance re-verified before release; SCI carbon per pipeline | [provenance docs](https://gitlab.com/omnis-guardian1/omnis-guardian/-/blob/main/guardian/docs/PROVENANCE.md) |
 
-**What is new.** Most "AI fixes CI" demos treat the agent's patch as the result. Here the agent's
+**What is new.** Fail-to-pass tests are how benchmarks such as SWE-bench grade agent patches offline. We make that check a live merge gate in GitLab CI, then put a person's approval before the agent acts and after CI proves it. Most "AI fixes CI" demos treat the agent's patch as the result. Here the agent's
 output is only a proposal: a person approves the plan, and CI must prove the fix by running the new
 test against the old code too, which is how it rejected the agent's own first test before a revision
 passed. The same boundary holds after release: the agent diagnoses production incidents and
@@ -63,7 +63,7 @@ testing and automatic rollback. The full table is in the README.
 
 ## What it does
 
-Omnis Guardian wraps **Kutt**, a self-hosted URL shortener with about 10k GitHub stars, in a GitLab
+Omnis Guardian wraps **Kutt**, a self-hosted URL shortener with about 11k GitHub stars, in a GitLab
 workflow where a person approves the plan, the merge and the release, and acts on every incident;
 CI and the canary deploy run automatically between those decisions.
 
@@ -81,22 +81,21 @@ CI and the canary deploy run automatically between those decisions.
    reply `revise`, and the flow reads the CI failures and pushes a corrected commit.
 5. **Release.** On `main`, the image is built, booted and smoke-tested, then signed with **Sigstore
    keyless signing** along with a signed **SLSA v1 provenance attestation** for its exact digest. A
-   person starts `release_gate`, which checks they are an allowed approver and re-verifies the
-   signatures against the registry.
+   person starts `release_gate`, which checks they are an allowed approver who did not author the
+   commit (four-eyes) and re-verifies the signatures against the registry.
 6. **Deploy safely.** The signed image is copied **by digest** to Artifact Registry and deployed to
    **Cloud Run**: a no-traffic candidate is smoke-tested, promoted, re-checked, and rolled back
    automatically if production fails. Google Cloud access is keyless (GitLab OIDC → Workload
    Identity Federation, trusted only for this project's protected `main`).
-7. **Watch production.** Every two hours a scheduled pipeline re-runs the live probes and checks for
+7. **Watch production.** Every four hours a scheduled pipeline re-runs the live probes and checks for
    configuration drift: Cloud Run must serve the last approved digest with exactly the settings in
    `runtime-config.json`. A failure triggers the same Duo flow, which reads the logs and opens an
    **incident issue** with a diagnosis and a recommended action. It never touches production; a
    person acts, and the next scheduled check confirms the fix.
-8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, is created and
-   enabled in the project for Duo Chat. It is built to answer "is this safe to ship?" on a merge
-   request or incident from the gate results and job logs, and to name the decision that is still
-   the maintainer's. Our group's Duo credits ran out before we recorded a chat session with it, so
-   unlike everything else here it has no public run to link.
+8. **Ask before you ship.** A read-only **custom Duo agent**, the Release Assistant, is published in
+   the AI Catalog to answer "is this safe to ship?" from gate results and job logs, naming the
+   decision that stays the maintainer's. Duo credits ran out in both our project and the hackathon
+   showcase before we could record a chat, so it has no public run to link.
 9. **Show the evidence.** A Pages dashboard summarizes all nine GitLab stages, each linked to the
    pipeline, job or merge request behind it, plus a per-pipeline SCI carbon figure. Every value comes
    from a real run; the only seeded input is the risky feature in MR !4, which exists to be caught.
@@ -106,12 +105,29 @@ blocked with **3 critical and 5 high** npm advisories. The upgrade cleared all o
 Kutt test still passed. Two moderate advisories remain (`uuid` through Bull); the only fix is a
 Bull downgrade, so they stay reported in the pipeline rather than hidden.
 
+## Sustainability (modelled, CI runner time only)
+
+Figures from `guardian/ci/carbon-report.mjs` (Green Software Foundation SCI, `(E × I + M)` per
+pipeline; CCF coefficients, assumptions listed in the report), applied to recorded job durations:
+
+| Pipeline | Jobs | Runner time | Estimated SCI |
+|---|---:|---:|---:|
+| Full release ([guardian-96](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2986648931)) | 14 | 387 s | 0.68 gCO₂e |
+| Merge request (no image build or release) | 7–10 | 157–251 s | 0.27–0.44 gCO₂e |
+| Scheduled production check (`monitor_production` only) | 1 | 66 s | 0.11 gCO₂e (mean of 12 runs) |
+
+Two design choices keep the recurring cost small. The production check runs one job instead of the
+full pipeline, about 84% less per check. It runs every four hours rather than every two, which
+halves monitoring to about 0.23 kgCO₂e a year. The boundary is GitLab hosted-runner CI only:
+Duo inference, Cloud Run runtime and networking are outside it. These are modelled estimates, not
+metered measurements, and we claim no emissions reduction beyond these design choices.
+
 ## How we built it
 
 - **GitLab Duo Agent Platform:** a custom flow (flow registry v1) with a planner and an executor
   agent and four modes (plan, approve, revise, incident triage), plus a read-only custom agent for
   Duo Chat, all using only GitLab API tools. The flow is triggered by *Pipeline events → Failed* and *Mention*,
-  and runs under composite identity. GitLab Duo Code Review reviewed every merge request.
+  and runs under composite identity. GitLab Duo Code Review reviewed our merge requests and caught real bugs in two of them.
 - **GitLab CI/CD:** 16 jobs across verify, secure, package, release and deploy, running on hosted
   runners. Also used: the Secret Detection template, the release keyword, Pages, protected
   variables, `id_tokens` for Sigstore and for Google Cloud, and dotenv artifacts.
@@ -148,7 +164,7 @@ Bull downgrade, so they stay reported in the pipeline rather than hidden.
 
 - A complete loop on a real, popular app: detect → plan → approve → fix → prove → release → deploy.
 - A real drift drill: someone changed production by hand, the scheduled monitor caught it, Duo opened
-  an incident with the exact fix, a person applied it through the approved deploy, and the next check
+  an incident with the recommended fix, a person applied it through the approved deploy, and the next check
   passed. Duo never touched production
   ([incident #1](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1)).
 - Every result on the dashboard and in the README links to a real pipeline, merge request, job or release.
@@ -161,8 +177,13 @@ plan, and making CI prove the result turned out more reliable than letting it ac
 
 ## What's next
 
-Upstream the dependency upgrades and the integration test suite to Kutt, and point the flow at
-other open-source projects (the rules and prompts are not Kutt-specific).
+Upstream the integration tests to Kutt: we offered them in
+[thedevs-network/kutt#1061](https://github.com/thedevs-network/kutt/issues/1061), since Kutt has no test
+suite and its `main` still reports 3 critical and 5 high npm advisories. Then make adoption a
+template: the security gate, release gate, signing and carbon report are written to run unchanged on other
+GitLab projects; the regression proof needs two settings for Node projects; the Duo flow prompt and
+smoke journeys are the parts each project rewrites. The README's "Use it on your own project" table
+lists each file.
 
 ## Built with
 

@@ -58,13 +58,19 @@ gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
 echo "Workload Identity Federation (trusts $GITLAB_PATH @ protected main only)…"
 gcloud iam workload-identity-pools describe gitlab --location=global >/dev/null 2>&1 || \
   gcloud iam workload-identity-pools create gitlab --location=global --display-name="GitLab"
-if ! gcloud iam workload-identity-pools providers describe gitlab-com --location=global --workload-identity-pool=gitlab >/dev/null 2>&1; then
-  gcloud iam workload-identity-pools providers create-oidc gitlab-com \
-    --location=global --workload-identity-pool=gitlab \
-    --issuer-uri="https://gitlab.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.project_path=assertion.project_path,attribute.ref=assertion.ref,attribute.ref_protected=assertion.ref_protected" \
-    --attribute-condition="assertion.project_path == '${GITLAB_PATH}' && assertion.ref == 'main' && assertion.ref_protected == 'true'"
+WIF_MAPPING="google.subject=assertion.sub,attribute.project_path=assertion.project_path,attribute.ref=assertion.ref,attribute.ref_protected=assertion.ref_protected"
+WIF_CONDITION="assertion.project_path == '${GITLAB_PATH}' && assertion.ref == 'main' && assertion.ref_protected == 'true'"
+# On a rerun, update the provider too, so the trust condition always matches $GITLAB_PATH.
+if gcloud iam workload-identity-pools providers describe gitlab-com --location=global --workload-identity-pool=gitlab >/dev/null 2>&1; then
+  WIF_VERB=update-oidc
+else
+  WIF_VERB=create-oidc
 fi
+gcloud iam workload-identity-pools providers "$WIF_VERB" gitlab-com \
+  --location=global --workload-identity-pool=gitlab \
+  --issuer-uri="https://gitlab.com" \
+  --attribute-mapping="$WIF_MAPPING" \
+  --attribute-condition="$WIF_CONDITION"
 PROVIDER="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/gitlab/providers/gitlab-com"
 gcloud iam service-accounts add-iam-policy-binding "$DEPLOYER_SA" --role=roles/iam.workloadIdentityUser \
   --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/gitlab/attribute.project_path/${GITLAB_PATH}" >/dev/null

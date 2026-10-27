@@ -2,11 +2,11 @@
 
 > **A Duo agent investigates and proposes a fix. CI proves it. A person decides whether it ships.**
 >
-> [Live app on Cloud Run](https://kutt-bda5naktma-uc.a.run.app) · [Evidence dashboard](https://omnis-guardian-af8ca1.gitlab.io) · [Drift-drill incident](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) · Demo video: see the Devpost entry
+> [Live app on Cloud Run](https://kutt-bda5naktma-uc.a.run.app) · [Evidence dashboard](https://omnis-guardian-af8ca1.gitlab.io) · [Drift-drill incident](https://gitlab.com/omnis-guardian1/omnis-guardian/-/work_items/1) · [Demo video (2:45)](https://youtu.be/qkRlhsLogSE)
 
 **An assisted release guardian for a real open-source app.** Omnis Guardian wraps
 [Kutt](https://github.com/thedevs-network/kutt), the self-hosted URL shortener (MIT,
-about 10k GitHub stars), in a GitLab DevSecOps workflow where a GitLab Duo agent does
+about 11k GitHub stars), in a GitLab DevSecOps workflow where a GitLab Duo agent does
 the investigative work and **a person approves the plan, the merge and the release, and acts on
 every incident**. CI and the canary deploy run automatically between those decisions:
 
@@ -78,6 +78,24 @@ security team and no release engineer. Kutt is a typical example. AI tools now w
 than these teams can check it is safe to ship. Omnis Guardian gives them an agent that does the
 investigating and a pipeline that does the proving, while the maintainer keeps every decision.
 
+## Use it on your own project
+
+Most of the pipeline does not depend on Kutt. What carries over, what needs a setting and what you rewrite:
+
+| Part | Files | To adopt |
+|---|---|---|
+| Fail-closed security gate | `guardian/ci/security-gate.mjs` | As is: reads any GitLab SAST, Secret Detection or dependency report. `SECURITY_GATE_BLOCKING` sets the severities. |
+| Approver-checked release gate, signing, provenance | `release-gate.mjs`, `verify-signatures.sh`, `provenance.mjs`, `verify-provenance.mjs`, `build-image.sh` | Set `RELEASE_APPROVERS`; change the image name `kutt` in `build-image.sh` and `.gitlab-ci.yml`. |
+| SCI carbon report | `guardian/ci/carbon-report.mjs` | As is: works on any GitLab pipeline's jobs. |
+| Regression proof | `guardian/ci/regression-proof.mjs` | Node `node --test` projects: set `GUARDIAN_SOURCE_PREFIXES` and `GUARDIAN_TEST_REGEX`. Other test runners need a new result parser. |
+| Dependency scan | `guardian/ci/dependency-report.mjs` | npm projects as is; other ecosystems use GitLab Dependency Scanning instead. |
+| Duo flow and Release Assistant | `.gitlab/duo/` | Rewrite the parts that name Kutt's test helper (`test/helpers/kutt.js`) and paths; the modes, approval checks and refusals stay. `config_check` validates the result. |
+| Smoke test, deploy, monitor | `smoke.mjs`, `deploy-cloudrun.sh`, `monitor*.mjs/sh`, `guardian/gcp/` | Rewrite the smoke journeys for your app. Cloud Run deploy and drift checks carry over with `runtime-config.json` edited. |
+
+[SETUP.md](guardian/docs/SETUP.md) walks through the GitLab and Google Cloud steps.
+
+The integration tests are offered upstream to Kutt in [thedevs-network/kutt#1061](https://github.com/thedevs-network/kutt/issues/1061).
+
 ## Before and after (Path B)
 
 | | Upstream Kutt v3.2.6 (before) | With Omnis Guardian on GitLab (after) |
@@ -87,10 +105,10 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 | Security | No scanning; v3.2.6 shipped with **3 critical and 5 high** npm advisories | Semgrep (Knex-aware rules), Secret Detection and npm audit, behind a fail-closed `security_gate` |
 | When a check fails | A maintainer investigates alone | A Duo flow diagnoses, proposes a plan and waits; on approval it opens a fix MR with a regression test |
 | Proof a fix works | Reviewer's judgment | `regression_proof`: the new test must fail on the old code and pass on the fix |
-| Code review | Manual only, no automated review | GitLab Duo Code Review on every MR, plus a person who merges |
+| Code review | Manual only, no automated review | GitLab Duo Code Review on our merge requests, plus a person who merges |
 | Release | Unsigned image pushed to Docker Hub on every push to `main` and on each GitHub release | Approver-checked `release_gate`, Sigstore-signed image, SLSA v1 provenance re-verified before release |
 | Deploy | Left to each self-hoster | Cloud Run by digest: no-traffic candidate, smoke test, promote, automatic rollback |
-| After deploy | Nothing watches production | Live probes and configuration drift checks every two hours; a failure makes Duo open an incident with a diagnosis |
+| After deploy | Nothing watches production | Live probes and configuration drift checks every four hours; a failure makes Duo open an incident with a diagnosis |
 | Evidence | None | Public dashboard built from live pipeline data, with SCI carbon per pipeline |
 
 ## Lifecycle coverage
@@ -103,8 +121,8 @@ investigating and a pipeline that does the proving, while the maintainer keeps e
 | Secure | Semgrep (Knex-aware rules) · GitLab Secret Detection · npm audit → `security_gate`, fails closed | — |
 | Package | Container image built from the commit, booted and smoke-tested in CI | — |
 | Release | Approver-checked `release_gate` → GitLab release | start the gate |
-| Configure | Cloud Run runtime settings as code ([`runtime-config.json`](guardian/gcp/runtime-config.json)), applied by every deploy and **drift-checked every two hours**: live traffic, image digest, CPU, memory, scaling, secrets and labels must match the approved release · `config_check` validates the pipeline, the Duo flow and the Duo agent | change config by MR |
-| Monitor | Every deploy: candidate smoke → promote → production check → auto-rollback. **Every two hours**: scheduled `monitor_production` re-runs the live probes; a failure triggers the Duo flow to open an incident | act on the incident |
+| Configure | Cloud Run runtime settings as code ([`runtime-config.json`](guardian/gcp/runtime-config.json)), applied by every deploy and **drift-checked every four hours**: live traffic, image digest, CPU, memory, scaling, secrets and labels must match the approved release · `config_check` validates the pipeline, the Duo flow and the Duo agent | change config by MR |
+| Monitor | Every deploy: candidate smoke → promote → production check → auto-rollback. **Every four hours**: scheduled `monitor_production` re-runs the live probes; a failure triggers the Duo flow to open an incident | act on the incident |
 | Govern | Sigstore keyless signature + signed SLSA v1 attestation on the image digest, verified before release; per-pipeline SCI carbon report | — |
 
 ## Live
@@ -136,7 +154,8 @@ bug to find. Everything that happened after it was pushed (scanner, Duo, CI, rev
    started `release_gate` (recorded approver: `fl4sh28`); the image was copied by digest to Artifact
    Registry and deployed to Cloud Run, where all 5 production smoke checks passed.
 5. **A risky feature arrives (seeded demo).** [MR !4](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/4) adds `?sort=column:direction` using
-   `orderByRaw` with interpolated input. Its tests pass; `security_gate` blocks it
+   `orderByRaw` with interpolated input. Kutt's integration tests pass, but `security_gate` blocks it
+   and `regression_proof` fails too
    ([pipeline](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines/2985030830)).
 6. **Duo diagnoses and waits.** The failed pipeline triggered the Omnis Guardian flow, which posted a
    diagnosis and fix plan on MR !4 and did nothing further until a maintainer replied `approve`.
@@ -177,6 +196,9 @@ bug to find. Everything that happened after it was pushed (scanner, Duo, CI, rev
     exact deploy job to retry. A person retried it ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448889191)): candidate, smoke test,
     promoted the approved digest with the declared settings. The next run passed
     ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17448928237)) and the person closed the incident. Duo never touched production.
+14. **Four-eyes release (pipeline #125).** With `RELEASE_REQUIRE_FOUR_EYES=true`, the maintainer merged and a
+    second person, `jonabram123`, started `release_gate`. The gate checked they are on the approver list and are not
+    the commit author, then re-verified the signatures ([job](https://gitlab.com/omnis-guardian1/omnis-guardian/-/jobs/17461529131)).
 
 Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines).
 
@@ -188,7 +210,7 @@ Every Duo session also appears as a `duo_workflow` pipeline in [CI/CD → Pipeli
 | Triggers: Pipeline failed, Mention | set up in AI > Triggers ([SETUP.md](guardian/docs/SETUP.md)) | each run is a `duo_workflow` pipeline in [Pipelines](https://gitlab.com/omnis-guardian1/omnis-guardian/-/pipelines?source=duo_workflow) |
 | Service account and composite identity | the flow's commits and notes are by `@ai-omnis-guardian-omnis-guardian` | [revise commit on MR !6](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/6) |
 | Custom agent (read-only Release Assistant) | [`.gitlab/duo/agents/release-assistant.yml`](.gitlab/duo/agents/release-assistant.yml) | created and enabled; no recorded chat (Duo credits ran out) |
-| GitLab Duo Code Review on every MR | MR reviews | caught real bugs in [MR !10](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/10) and [MR !13](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/13) |
+| GitLab Duo Code Review | MR reviews | caught real bugs in [MR !10](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/10) and [MR !13](https://gitlab.com/omnis-guardian1/omnis-guardian/-/merge_requests/13) |
 | `AGENTS.md` repository rules | [`AGENTS.md`](AGENTS.md) | repository rules for agents working here (smallest fix, allow-lists, a regression test, never touch CI); the flow's prompts encode the same rules |
 | Config validation before GitLab sees it | [`guardian/ci/validate_config.py`](guardian/ci/validate_config.py) in `config_check` | rejects unknown or write tools for the agent, hidden prompt characters, broken routers |
 
@@ -218,9 +240,6 @@ The dashboard built locally has no CI artifacts, so it shows clear "missing" sta
 
 ## Limitations
 
-- Single-maintainer project: the release gate's four-eyes rule (approver must not be the commit
-  author) is supported but switched off with `RELEASE_REQUIRE_FOUR_EYES=false`, and every release
-  records that in `release-evidence.json`. A team would turn it on.
 - The flow's token may not read project membership (HTTP 403 `insufficient_scope`). In that one
   case it relies on GitLab's composite identity, which blocks branch and commit creation for anyone
   below Developer; a 404, a low access level or any other error refuses.
@@ -232,7 +251,9 @@ The dashboard built locally has no CI artifacts, so it shows clear "missing" sta
 - Provenance is generated by this project's CI and signed with Sigstore; it is not a SLSA Build L3 claim.
 - CI job images are referenced by tag (for example `node:22-alpine`), not by digest. The image that
   ships is pinned: its base image digest and its own digest are recorded in the signed SLSA provenance.
-- The carbon report covers CI runner time only; LLM inference and Cloud Run runtime are outside its boundary, and its embodied-carbon coefficient is a stated assumption.
+- The very first deploy (no service yet) has no previous revision to protect, so it deploys directly and
+  only smoke-tests; the candidate, promote and rollback path applies from the second release on.
+- The carbon report covers CI runner time only; LLM inference and Cloud Run runtime are outside its boundary, and its embodied-carbon coefficient is a stated assumption. Measured figures per pipeline type are in [SUBMISSION.md](guardian/docs/SUBMISSION.md#sustainability-modelled-ci-runner-time-only).
 
 ---
 

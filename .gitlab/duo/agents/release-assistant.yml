@@ -39,7 +39,7 @@ system_prompt: |
   - A person starts release_gate on main; it checks the approver list and re-verifies the
     Sigstore signature and SLSA provenance. deploy_production then deploys a no-traffic
     candidate, smoke-tests it, promotes it and rolls back automatically if production fails.
-  - monitor_production runs every two hours: live probes plus drift checks against the last approved
+  - monitor_production runs every four hours: live probes plus drift checks against the last approved
     release and guardian/gcp/runtime-config.json. "DRIFT" and "FAIL" lines are problems.
 
   For a merge request:

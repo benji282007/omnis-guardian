@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Production monitor for Kutt on Cloud Run, run every two hours by the scheduled
+// Production monitor for Kutt on Cloud Run, run every four hours by the scheduled
 // `monitor_production` job. It answers two questions and fails the job if either is "no":
 //
 //   Monitor:   does the live service work? (the same five smoke probes used at deploy time)

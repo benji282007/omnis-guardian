@@ -14,7 +14,7 @@
 #           "@[this account] revise" on the fix MR; the flow reads the CI failures, posts a
 #           revision plan and pushes a corrected commit. A person reviews and merges.
 #   Step 4  A person approves the release (release_gate job).
-#   Step 5  The hourly monitor_production job fails (live probes or configuration drift) ->
+#   Step 5  The scheduled monitor_production job fails (live probes or configuration drift) ->
 #           the planner diagnoses it and opens an incident issue with a recommended action
 #           for a person (mode D). It never touches production itself.
 # The flow can never merge, approve, release or deploy.
@@ -99,7 +99,7 @@ prompts:
 
         MODE D: a pipeline webhook payload (JSON with object_kind "pipeline") where
         object_attributes.source is "schedule" and object_attributes.status is "failed". This is
-        the hourly production monitor. Check this mode BEFORE mode A.
+        the scheduled production monitor. Check this mode BEFORE mode A.
         - get_pipeline_failing_jobs. If no failed job is named "monitor_production", answer
           "NO_ACTION: scheduled pipeline without a monitor failure".
         - get_job_logs for monitor_production. Lines starting with "DRIFT" are configuration drift:
@@ -131,7 +131,7 @@ prompts:
             image by digest with a candidate, smoke test and automatic rollback; or, if the change
             was intended, change guardian/gcp/runtime-config.json in a merge request. For failing
             probes, the same redeploy, or investigating the named journey.
-          - "Omnis Guardian does not change production. A person decides and acts; the next hourly
+          - "Omnis Guardian does not change production. A person decides and acts; the next scheduled
             check closes the loop."
         - Final answer: "INCIDENT_OPENED: #[issue iid]".
 

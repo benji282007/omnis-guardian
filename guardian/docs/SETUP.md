@@ -37,7 +37,7 @@ project, and a Google Cloud project with billing.
 | Key | Value |
 |---|---|
 | `RELEASE_APPROVERS` | your GitLab username (comma-separate several) |
-| `RELEASE_REQUIRE_FOUR_EYES` | `false` only if you are the sole maintainer |
+| `RELEASE_REQUIRE_FOUR_EYES` | `true` (default); `false` only if you are the sole maintainer |
 | `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_DEPLOYER_SA`, `GCP_RUNTIME_SA` | printed by step 3 |
 
 Make sure `main` is a protected branch (it is by default); Google Cloud only trusts
@@ -75,7 +75,7 @@ The Kutt admin password for the live instance:
 ## 5. Scheduled production monitor
 
 **Build → Pipeline schedules → New schedule**: description `Omnis Guardian production monitor`,
-interval `0 */2 * * *` (every two hours, which keeps a free group inside its 400 CI minutes), target branch `main`, active. Each run executes only
+interval `0 */4 * * *` (every four hours: about 1 CI minute per run, roughly 6 a day, inside a free group's 400 monthly minutes), target branch `main`, active. Each run executes only
 `monitor_production`: live probes, plus drift checks that the service serves the last approved
 digest with the settings in `guardian/gcp/runtime-config.json`. Press **Run** once to see it
 pass. To intentionally change a runtime setting, edit `runtime-config.json` in a merge request;

@@ -314,7 +314,7 @@ deploy_production:
     expire_in: never
     paths: [deploy-result.json, smoke-candidate.json, smoke-production.json]
 
-# Scheduled production check (every two hours), run by a pipeline schedule on main (CI/CD > Schedules).
+# Scheduled production check (every four hours), run by a pipeline schedule on main (CI/CD > Schedules).
 # Monitor: the five live smoke probes. Configure: the live service must serve the last
 # approved digest with the settings in guardian/gcp/runtime-config.json (drift detection).
 # A failure fails the pipeline, which triggers the Duo flow to open an incident issue.
